@@ -170,7 +170,8 @@
             // Estrutura padrão da base de dados
             defaultDB: {
                 adeptos: {}, // Usar objeto para fácil acesso por ID
-                custos: []
+                custos: [],
+                contribuicoes: []
             },
 
             // 1. INICIALIZAÇÃO E GESTÃO DA BASE DE DADOS
@@ -331,6 +332,7 @@
                     // Garante que as estruturas base existem se os dados estiverem parcialmente corrompidos
                     if (!this.db.adeptos) this.db.adeptos = {};
                     if (!this.db.custos) this.db.custos = [];
+                    if (!this.db.contribuicoes) this.db.contribuicoes = [];
                 } else {
                     // Se não houver DB, usa o padrão (cópia profunda)
                     this.db = JSON.parse(JSON.stringify(this.defaultDB));
@@ -482,6 +484,9 @@
                     case 'custos':
                         content += this.renderCustos();
                         break;
+                    case 'contribuicoes':
+                        content += this.renderContribuicoes(data); // data é o editingIndex
+                        break;
                     case 'inadimplencia':
                         content += this.renderInadimplencia();
                         break;
@@ -506,7 +511,7 @@
              */
             renderHome: function() {
                 return `
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
                         <!-- Adeptos -->
                         <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in">
                             <h2 class="text-2xl font-semibold mb-4 text-red-400">Adeptos</h2>
@@ -519,11 +524,11 @@
                             <p class="text-gray-300 mb-6">Controle de mensalidades e débitos individuais.</p>
                             <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('financeiroList')">Aceder ao Financeiro</button>
                         </div>
-                        <!-- Custos -->
+                        <!-- Capital -->
                         <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.2s;">
-                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Custos do Templo</h2>
-                            <p class="text-gray-300 mb-6">Registo de despesas e custos operacionais.</p>
-                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('custos')">Ver Custos</button>
+                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Capital (Balanço)</h2>
+                            <p class="text-gray-300 mb-6">Balanço financeiro (Entradas vs Saídas).</p>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('capital')">Ver Capital</button>
                         </div>
                         <!-- Inadimplência -->
                         <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.3s;">
@@ -531,20 +536,23 @@
                             <p class="text-gray-300 mb-6">Relatório de adeptos com pendências financeiras.</p>
                             <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('inadimplencia')">Ver Relatório</button>
                         </div>
-                        <!-- Capital -->
+                        <!-- Custos -->
                         <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.4s;">
-                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Capital (Balanço)</h2>
-                            <p class="text-gray-300 mb-6">Balanço financeiro (Entradas vs Saídas).</p>
-                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('capital')">Ver Capital</button>
+                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Custos do Templo</h2>
+                            <p class="text-gray-300 mb-6">Registo de despesas e custos operacionais.</p>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('custos')">Ver Custos</button>
                         </div>
-                        <!-- Exportar -->
+                        <!-- Contribuições -->
                         <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.5s;">
-                            <h2 class="text-2xl font-semibold mb-4 text-gray-400">Exportação</h2>
-                            <p class="text-gray-300 mb-6">Backup de todos os dados do sistema em Excel.</p>
-                            <button class="btn-secondary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.exportarExcel()" id="btn-export-excel">
-                                Exportar (Excel)
-                            </button>
+                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Contribuições</h2>
+                            <p class="text-gray-300 mb-6">Registo de contribuições voluntárias.</p>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('contribuicoes')">Ver Contribuições</button>
                         </div>
+                    </div>
+                    <div class="text-center">
+                        <button class="btn-secondary px-6 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.exportarExcel()" id="btn-export-excel">
+                            Exportar Backup (Excel)
+                        </button>
                     </div>
                 `;
             },
@@ -1342,6 +1350,101 @@
                 this.render('custos'); // Redesenha
             },
 
+            // 5.1. SEÇÃO: CONTRIBUIÇÕES
+
+            /**
+             * Renderiza a página de contribuições voluntárias.
+             */
+            renderContribuicoes: function(editingIndex = null) {
+                let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Contribuições Voluntárias</h2>`;
+                const isEditing = editingIndex !== null;
+                const contrib = isEditing ? this.db.contribuicoes[editingIndex] : {};
+
+                // Formulário para adicionar/editar
+                content += `
+                    <div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-200">${isEditing ? 'Editar Contribuição' : 'Adicionar Nova Contribuição'}</h3>
+                        <form id="add-contrib-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input type="date" id="contrib-data" class="form-input rounded-md shadow-sm" style="color-scheme: dark;" value="${contrib.data || ''}" required>
+                            <input type="text" id="contrib-obs" placeholder="Observação" class="form-input rounded-md shadow-sm" value="${contrib.obs || ''}" required>
+                            <input type="number" id="contrib-valor" placeholder="Valor (R$)" step="0.01" min="0.01" class="form-input rounded-md shadow-sm" value="${contrib.valor || ''}" required>
+                            <div class="md:col-span-3">
+                                <button type="button" class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white" onclick="App.adicionarContribuicao(${editingIndex})">
+                                    ${isEditing ? 'Atualizar Contribuição' : 'Adicionar Contribuição'}
+                                </button>
+                                ${isEditing ? `<button type="button" class="btn-secondary w-full px-4 py-2 rounded-md shadow-lg text-white mt-2" onclick="App.render('contribuicoes')">Cancelar Edição</button>` : ''}
+                            </div>
+                        </form>
+                    </div>
+                `;
+
+                // Lista de contribuições
+                content += `<div class="card-gradient p-6 rounded-lg shadow-xl">
+                                <h3 class="text-xl font-semibold mb-4 text-gray-200">Contribuições Registradas</h3>
+                                <div id="contrib-list" class="space-y-4">
+                `;
+                
+                const contribsOrdenadas = [...this.db.contribuicoes].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+                if (contribsOrdenadas.length === 0) {
+                    content += `<p class="text-gray-400">Nenhuma contribuição registrada.</p>`;
+                } else {
+                    contribsOrdenadas.forEach((c, index) => {
+                        const originalIndex = this.db.contribuicoes.indexOf(c);
+                        content += `
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-gray-700 rounded-md gap-2">
+                                <div class="flex-1">
+                                    <p class="font-semibold text-gray-200">${this.formatDate(c.data)} - ${c.obs}</p>
+                                    <p class="text-sm text-green-400">${this.formatCurrency(c.valor)}</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="text-blue-400 hover:text-blue-300" onclick="App.render('contribuicoes', ${originalIndex})">Editar</button>
+                                    <button class="text-red-500 hover:text-red-400" onclick="App.apagarContribuicao(${originalIndex})">Apagar</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                content += `</div></div>`;
+
+                return content;
+            },
+
+            /**
+             * Adiciona ou atualiza uma contribuição.
+             */
+            adicionarContribuicao: function(editingIndex = null) {
+                const data = document.getElementById('contrib-data').value;
+                const obs = document.getElementById('contrib-obs').value;
+                const valor = parseFloat(document.getElementById('contrib-valor').value);
+
+                if (data && obs && valor > 0) {
+                    const novaContrib = { data, obs, valor };
+                    
+                    if (editingIndex !== null) {
+                        this.db.contribuicoes[editingIndex] = novaContrib;
+                    } else {
+                        this.db.contribuicoes.push(novaContrib);
+                    }
+                    
+                    this.saveDB();
+                    this.render('contribuicoes');
+                } else {
+                    alert("Por favor, preencha todos os campos da contribuição.");
+                }
+            },
+
+            /**
+             * Apaga uma contribuição.
+             */
+            apagarContribuicao: function(index) {
+                if (confirm('Tem a certeza que quer apagar esta contribuição?')) {
+                    this.db.contribuicoes.splice(index, 1);
+                    this.saveDB();
+                    this.render('contribuicoes');
+                }
+            },
+
             // 6. SEÇÃO: INADIMPLÊNCIA
 
             /**
@@ -1737,7 +1840,25 @@
                     });
                 }
 
-                // 2. Processar Saídas (Custos Pagos)
+                // 2. Processar Entradas (Contribuições)
+                if (this.db.contribuicoes) {
+                    this.db.contribuicoes.forEach(contrib => {
+                        const data = this.parseDate(contrib.data);
+                        if (!data || data < this.dataLimite) return;
+
+                        const anoNum = data.getFullYear();
+                        const mesNum = data.getMonth();
+                        initAno(anoNum);
+                        
+                        const valor = contrib.valor || 0;
+                        relatorio[anoNum].meses[mesNum].entradas += valor;
+                        relatorio[anoNum].meses[mesNum].balanco += valor;
+                        relatorio[anoNum].totalAno.entradas += valor;
+                        relatorio[anoNum].totalAno.balanco += valor;
+                    });
+                }
+
+                // 3. Processar Saídas (Custos Pagos)
                 if (this.db.custos) {
                     this.db.custos.forEach(custo => {
                         const data = this.parseDate(custo.data);
@@ -1822,7 +1943,16 @@
                     const wsCustos = XLSX.utils.json_to_sheet(custosData);
                     XLSX.utils.book_append_sheet(wb, wsCustos, "Custos do Templo");
 
-                    // --- Aba 4: Capital (Balanço) ---
+                    // --- Aba 4: Contribuições ---
+                    const contribuicoesData = this.db.contribuicoes.map(c => ({
+                        Data: this.formatDate(c.data),
+                        Observação: c.obs,
+                        "Valor (R$)": c.valor
+                    })).sort((a,b) => new Date(a.Data) - new Date(b.Data));
+                    const wsContribuicoes = XLSX.utils.json_to_sheet(contribuicoesData);
+                    XLSX.utils.book_append_sheet(wb, wsContribuicoes, "Contribuições");
+
+                    // --- Aba 5: Capital (Balanço) ---
                     const capitalReport = this.getCapitalReportData();
                     const capitalData = [];
                     const meses = ["Jan", "Fev", "Mar", "Abr", "Maio", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
