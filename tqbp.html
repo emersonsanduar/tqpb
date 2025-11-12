@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TQPB - Gerenciador</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jsPDF e SheetJS (para PDF e Excel) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        /* Estilos personalizados */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Gradiente de fundo */
+        .bg-gradient-tqpb {
+            background: linear-gradient(135deg, #111111 0%, #2b2b2b 30%, #444444 60%, #880000 100%);
+        }
+        /* Gradiente dos botões e cartões */
+        .card-gradient {
+            background: linear-gradient(145deg, rgba(51, 51, 51, 0.8), rgba(34, 34, 34, 0.9));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(145deg, #a30000, #c70000);
+            border-bottom: 2px solid #880000;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(145deg, #c70000, #a30000);
+        }
+        .btn-secondary {
+            background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
+            border-bottom: 2px solid #222;
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(145deg, #3a3a3a, #4a4a4a);
+        }
+        .form-input {
+            background-color: #333;
+            border-color: #555;
+            color: #FFF; /* Cor do texto digitado */
+        }
+        .form-input::placeholder {
+            color: #999; /* Cor do placeholder */
+        }
+        /* Cor dos selects */
+        select.form-input {
+            color: #FFF;
+        }
+        select.form-input option {
+            background-color: #333;
+            color: #FFF;
+        }
+        /* Animação de entrada */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        
+        /* Estilos do Modal */
+        #valor-parcial-modal.hidden {
+            display: none;
+        }
+        #valor-parcial-modal {
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        /* Spinner */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #c70000;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+        }
+        .btn-spinner::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-top: -8px;
+            margin-left: -8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-gradient-tqpb">
+
+    <!-- Notificação de Erro (para redefinição) -->
+    <!-- Este elemento será preenchido pela App.init em caso de falha -->
+
+    <!-- Aplicação Principal -->
+    <div id="app" class="min-h-screen text-white">
+        <!-- O conteúdo da aplicação será renderizado aqui pelo App.render() -->
+    </div>
+
+    <!-- Modal de Valor Parcial -->
+    <div id="valor-parcial-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="card-gradient rounded-lg shadow-xl p-6 w-full max-w-md border border-gray-700">
+            <form id="valor-parcial-form" class="text-gray-900">
+                <h3 class="text-lg font-semibold mb-4 text-white">Inserir Valor Parcial</h3>
+                <label for="valor-parcial-input" class="block text-sm font-medium text-gray-300">Valor Pago:</label>
+                <input type="number" id="valor-parcial-input" step="0.01" min="0.01" class="form-input mt-1 block w-full rounded-md shadow-sm text-black" required>
+                
+                <!-- Campos ocultos para passar dados -->
+                <input type="hidden" id="modal-tipo">
+                <input type="hidden" id="modal-adeptoId">
+                <input type="hidden" id="modal-ano">
+                <input type="hidden" id="modal-mes">
+                <input type="hidden" id="modal-debitoIndex">
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" id="modal-cancelar" class="btn-secondary px-4 py-2 rounded-md shadow-sm text-white">Cancelar</button>
+                    <button type="submit" class="btn-primary px-4 py-2 rounded-md shadow-sm text-white">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Fim do Modal -->
+
+
+    <script>
+    const App = {
+        appName: "Gerenciador TQPB",
+        dbKey: "TQPB_DB_V2", // Chave para o localStorage
+        db: null, // Onde os dados serão mantidos em memória
+        state: { // Estado volátil da UI
+            currentYear: new Date().getFullYear(),
+        },
+        dataLimite: new Date(2024, 0, 1), // 1 de Janeiro de 2024
+
+        // Estrutura padrão da base de dados
+        defaultDB: {
+            adeptos: {}, // Usar objeto para fácil acesso por ID
+            custos: []
+        },
+
+        // 1. INICIALIZAÇÃO E GESTÃO DA BASE DE DADOS
+        
+        /**
+         * Ponto de entrada principal da aplicação.
+         * Tenta carregar, migrar e renderizar.
+         * Se falhar, redefine a aplicação para um estado seguro.
+         */
+        init: function() {
+            try {
+                console.log("Tentando carregar a base de dados...");
+                this.loadDB();
+                
+                console.log("Migrando dados (se necessário)...");
+                this.migrateData();
+                
+                console.log("Atualizando pagamentos adiantados...");
+                this.autoUpdatePagamentosAdiantados();
+                
+                console.log("Inicializando formulário modal...");
+                this.initModalForm();
+                
+                console.log("Renderizando aplicação...");
+                this.render('home');
+                console.log("Aplicação carregada com sucesso.");
+
+            } catch (error) {
+                console.error("ERRO CRÍTICO NA INICIALIZAÇÃO:", error);
+                console.log("Os dados guardados parecem estar corrompidos ou numa versão incompatível. A redefinir a aplicação...");
+                
+                try {
+                    // Tenta redefinir para um estado seguro
+                    localStorage.removeItem(this.dbKey);
+                    this.db = JSON.parse(JSON.stringify(this.defaultDB));
+                    this.saveDB();
+                    console.log("Aplicação redefinida para o estado padrão.");
+
+                    // Tenta renderizar o 'home' e o 'modal' mesmo após o reset
+                    this.initModalForm();
+                    this.render('home');
+                    
+                    // Adiciona uma notificação visual para o utilizador
+                    const notification = `<div id="error-notification" style="background-color: #880000; color: white; padding: 16px; text-align: center; position: fixed; top: 0; left: 0; right: 0; z-index: 100;">Ocorreu um erro ao ler os seus dados. A aplicação foi redefinida para o estado padrão.</div>`;
+                    document.body.insertAdjacentHTML('afterbegin', notification);
+                    
+                    setTimeout(() => {
+                        const el = document.getElementById('error-notification');
+                        if (el) el.remove();
+                    }, 6000);
+
+                } catch (resetError) {
+                    // Se até o reset falhar, mostra uma mensagem de falha total
+                    console.error("FALHA CRÍTICA AO REDEFINIR A APLICAÇÃO:", resetError);
+                    document.body.innerHTML = `<div style="color: red; background: white; padding: 20px; font-size: 18px; text-align: center; margin-top: 50px;">Falha crítica irrecuperável. Por favor, limpe os dados do seu navegador para este site.</div>`;
+                }
+            }
+        },
+
+        /**
+         * Inicializa os eventos do modal de pagamento parcial.
+         */
+        initModalForm: function() {
+            const form = document.getElementById('valor-parcial-form');
+            const cancelar = document.getElementById('modal-cancelar');
+            const modal = document.getElementById('valor-parcial-modal');
+            const input = document.getElementById('valor-parcial-input');
+
+            // Verificação de segurança
+            if (!form || !cancelar || !modal || !input) {
+                console.error("Não foi possível inicializar o formulário do modal. Elementos em falta.");
+                return;
+            }
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const valor = parseFloat(input.value);
+                const tipo = document.getElementById('modal-tipo').value;
+                const adeptoId = document.getElementById('modal-adeptoId').value;
+                
+                if (valor > 0) {
+                    if (tipo === 'mensalidade') {
+                        const ano = document.getElementById('modal-ano').value;
+                        const mes = document.getElementById('modal-mes').value;
+                        
+                        // Garante que a estrutura existe
+                        if (!this.db.adeptos[adeptoId].mensalidades[ano]) this.db.adeptos[adeptoId].mensalidades[ano] = {};
+                        if (!this.db.adeptos[adeptoId].mensalidades[ano][mes]) this.db.adeptos[adeptoId].mensalidades[ano][mes] = {};
+
+                        this.db.adeptos[adeptoId].mensalidades[ano][mes] = { status: 'parcial', valor: valor };
+                        this.saveDB();
+                        this.atualizarFinanceiroDetalhe(); // Atualiza a UI
+                    
+                    } else if (tipo === 'debito') {
+                        const debitoIndex = document.getElementById('modal-debitoIndex').value;
+                        const debito = this.db.adeptos[adeptoId].debitos[debitoIndex];
+                        
+                        // Garante que o valor parcial não é maior que o total
+                        const valorPago = Math.min(valor, debito.valorTotal);
+                        debito.status = 'parcial';
+                        debito.valorPago = valorPago;
+                        
+                        this.saveDB();
+                        this.atualizarFinanceiroDetalhe(); // Atualiza a UI
+                    }
+                    this.hideValorParcialModal();
+                }
+            });
+
+            cancelar.addEventListener('click', () => {
+                this.hideValorParcialModal();
+            });
+        },
+
+        /**
+         * Mostra o modal de pagamento parcial.
+         */
+        showValorParcialModal: function(adeptoId, ano, mes, tipo, debitoIndex = null) {
+            const modal = document.getElementById('valor-parcial-modal');
+            const input = document.getElementById('valor-parcial-input');
+            
+            // Limpa o input
+            input.value = '';
+
+            // Define os dados ocultos
+            document.getElementById('modal-tipo').value = tipo;
+            document.getElementById('modal-adeptoId').value = adeptoId;
+
+            if (tipo === 'mensalidade') {
+                document.getElementById('modal-ano').value = ano;
+                document.getElementById('modal-mes').value = mes;
+                input.max = 149.99; // Valor máximo para mensalidade parcial
+            } else if (tipo === 'debito') {
+                document.getElementById('modal-debitoIndex').value = debitoIndex;
+                const valorTotal = this.db.adeptos[adeptoId].debitos[debitoIndex].valorTotal;
+                input.max = valorTotal - 0.01; // Valor máximo para débito parcial
+            }
+
+            modal.classList.remove('hidden');
+            input.focus();
+        },
+
+        /**
+         * Esconde o modal de pagamento parcial.
+         */
+        hideValorParcialModal: function() {
+            const modal = document.getElementById('valor-parcial-modal');
+            modal.classList.add('hidden');
+        },
+
+        /**
+         * Carrega a base de dados do localStorage.
+         */
+        loadDB: function() {
+            const dbData = localStorage.getItem(this.dbKey);
+            if (dbData) {
+                this.db = JSON.parse(dbData);
+                // Garante que as estruturas base existem se os dados estiverem parcialmente corrompidos
+                if (!this.db.adeptos) this.db.adeptos = {};
+                if (!this.db.custos) this.db.custos = [];
+            } else {
+                // Se não houver DB, usa o padrão (cópia profunda)
+                this.db = JSON.parse(JSON.stringify(this.defaultDB));
+            }
+        },
+
+        /**
+         * Salva a base de dados no localStorage.
+         */
+        saveDB: function() {
+            if (this.db) {
+                localStorage.setItem(this.dbKey, JSON.stringify(this.db));
+            }
+        },
+
+        /**
+         * Atualiza a estrutura dos dados para novas versões.
+         */
+        migrateData: function() {
+            let changed = false;
+            if (!this.db || !this.db.adeptos) return; // Segurança
+
+            Object.values(this.db.adeptos).forEach(adepto => {
+                // Migração: 'mensalidades' de string (antigo) para objeto {status, valor}
+                if (adepto.mensalidades) {
+                    Object.keys(adepto.mensalidades).forEach(ano => {
+                        if (!adepto.mensalidades[ano]) return; // Segurança
+                        Object.keys(adepto.mensalidades[ano]).forEach(mes => {
+                            const status = adepto.mensalidades[ano][mes];
+                            if (typeof status === 'string') {
+                                if (status === 'pago' || status === 'adiantado') {
+                                    adepto.mensalidades[ano][mes] = { status: status, valor: 150.00 };
+                                } else if (status === 'pendente') {
+                                    adepto.mensalidades[ano][mes] = { status: 'pendente', valor: 0 };
+                                }
+                                changed = true;
+                            }
+                        });
+                    });
+                }
+                
+                // Migração: 'debitos' (compras) para o novo formato {status, valorTotal, valorPago}
+                if (adepto.debitos && adepto.debitos.length > 0) {
+                    adepto.debitos.forEach(debito => {
+                        if (typeof debito.pago !== 'undefined') {
+                            // Formato antigo: { data, obs, valor, pago (bool) }
+                            debito.valorTotal = debito.valor;
+                            debito.status = debito.pago ? 'pago' : 'pendente';
+                            debito.valorPago = debito.pago ? debito.valorTotal : 0;
+                            
+                            delete debito.valor;
+                            delete debito.pago;
+                            changed = true;
+                        }
+                    });
+                } else if (!adepto.debitos) {
+                    adepto.debitos = []; // Garante que a estrutura existe
+                }
+            });
+
+            if (changed) {
+                console.log("Migração de dados concluída. Salvando...");
+                this.saveDB();
+            }
+        },
+
+        /**
+         * Verifica pagamentos adiantados e os converte para 'pago' se o mês chegou.
+         */
+        autoUpdatePagamentosAdiantados: function() {
+            if (!this.db || !this.db.adeptos) return; // Segurança
+            
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            const mesAtual = hoje.getMonth(); // 0-11
+            let changed = false;
+
+            Object.values(this.db.adeptos).forEach(adepto => {
+                if (!adepto.mensalidades) return; // Segurança
+
+                Object.keys(adepto.mensalidades).forEach(ano => {
+                    if (!adepto.mensalidades[ano]) return; // Segurança
+                    const anoNum = parseInt(ano);
+                    
+                    Object.keys(adepto.mensalidades[ano]).forEach(mes => {
+                        const mesNum = parseInt(mes); // 0-11
+                        const statusObj = adepto.mensalidades[ano][mes];
+
+                        if (statusObj && statusObj.status === 'adiantado') {
+                            // Se o ano é passado OU se é o ano atual e o mês é passado/atual
+                            if (anoNum < anoAtual || (anoNum === anoAtual && mesNum <= mesAtual)) {
+                                statusObj.status = 'pago';
+                                statusObj.valor = 150.00; // Confirma o valor
+                                changed = true;
+                            }
+                        }
+                    });
+                });
+            });
+
+            if (changed) {
+                console.log("Pagamentos adiantados atualizados para 'pago'.");
+                this.saveDB();
+            }
+        },
+
+        // 2. RENDERIZAÇÃO (UI)
+
+        /**
+         * Renderiza a página principal com base no ID da página.
+         */
+        render: function(page, data = null) {
+            const app = document.getElementById('app');
+            if (!app) return;
+            
+            app.innerHTML = ''; // Limpa a tela
+            let content = '';
+
+            // Header comum
+            content += `
+                <header class="p-4 shadow-lg bg-gray-900 bg-opacity-80 backdrop-blur-sm sticky top-0 z-40 border-b border-gray-700">
+                    <div class="container mx-auto flex justify-between items-center">
+                        <h1 class="text-xl md:text-2xl font-bold text-red-500 cursor-pointer" onclick="App.render('home')">
+                            Templo de Quimbanda<br>Povo do Buraco
+                        </h1>
+                        ${page !== 'home' ? `<button class="btn-secondary text-sm md:text-base px-3 py-2 rounded-md shadow-lg text-white" onclick="App.render('home')">&larr; Voltar ao Menu</button>` : ''}
+                    </div>
+                </header>
+                <main class="container mx-auto p-4 md:p-6">
+            `;
+
+            // Conteúdo da página
+            switch (page) {
+                case 'home':
+                    content += this.renderHome();
+                    break;
+                case 'adeptosList':
+                    content += this.renderAdeptosList();
+                    break;
+                case 'adeptoForm':
+                    content += this.renderAdeptoForm(data); // data é o adepto
+                    break;
+                case 'financeiroList':
+                    content += this.renderFinanceiroList();
+                    break;
+                case 'financeiroDetalhe':
+                    content += this.renderFinanceiroDetalhe(data); // data é o adepto
+                    break;
+                case 'custos':
+                    content += this.renderCustos();
+                    break;
+                case 'inadimplencia':
+                    content += this.renderInadimplencia();
+                    break;
+                case 'inadimplenciaDetalhe':
+                    content += this.renderInadimplenciaDetalhe(data); // data é o adepto
+                    break;
+                case 'capital':
+                    content += this.renderCapital();
+                    break;
+            }
+
+            content += '</main>';
+            app.innerHTML = content;
+
+            // Inicia scripts específicos da página (se houver)
+            if (page === 'adeptoForm') this.initAdeptoForm(this.db.adeptos, data);
+            if (page === 'financeiroDetalhe') this.state.currentAdeptoId = data.id; // Salva o ID do adepto atual
+        },
+
+        /**
+         * Renderiza o menu principal (Home).
+         */
+        renderHome: function() {
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    <!-- Adeptos -->
+                    <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in">
+                        <h2 class="text-2xl font-semibold mb-4 text-red-400">Adeptos</h2>
+                        <p class="text-gray-300 mb-6">Gestão de cadastros, informações e obrigações.</p>
+                        <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('adeptosList')">Gerir Adeptos</button>
+                    </div>
+                    <!-- Financeiro -->
+                    <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.1s;">
+                        <h2 class="text-2xl font-semibold mb-4 text-red-400">Controle Financeiro</h2>
+                        <p class="text-gray-300 mb-6">Controle de mensalidades e débitos individuais.</p>
+                        <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('financeiroList')">Aceder ao Financeiro</button>
+                    </div>
+                    <!-- Custos -->
+                    <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.2s;">
+                        <h2 class="text-2xl font-semibold mb-4 text-red-400">Custos do Templo</h2>
+                        <p class="text-gray-300 mb-6">Registo de despesas e custos operacionais.</p>
+                        <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('custos')">Ver Custos</button>
+                    </div>
+                    <!-- Inadimplência -->
+                    <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.3s;">
+                        <h2 class="text-2xl font-semibold mb-4 text-red-400">Inadimplência</h2>
+                        <p class="text-gray-300 mb-6">Relatório de adeptos com pendências financeiras.</p>
+                        <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('inadimplencia')">Ver Relatório</button>
+                    </div>
+                    <!-- Capital -->
+                    <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.4s;">
+                        <h2 class="text-2xl font-semibold mb-4 text-red-400">Capital (Balanço)</h2>
+                        <p class="text-gray-300 mb-6">Balanço financeiro (Entradas vs Saídas).</p>
+                        <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('capital')">Ver Capital</button>
+                    </div>
+                    <!-- Exportar -->
+                    <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.5s;">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-400">Exportação</h2>
+                        <p class="text-gray-300 mb-6">Backup de todos os dados do sistema em Excel.</p>
+                        <button class="btn-secondary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.exportarExcel()" id="btn-export-excel">
+                            Exportar (Excel)
+                        </button>
+                    </div>
+                </div>
+            `;
+        },
+
+        // 3. SEÇÃO: ADEPTOS
+
+        /**
+         * Renderiza a lista de adeptos.
+         */
+        renderAdeptosList: function() {
+            let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Adeptos</h2>`;
+            content += `<button class="btn-primary px-4 py-2 rounded-md shadow-lg mb-6" onclick="App.render('adeptoForm')">Cadastrar Novo Adepto</button>`;
+            
+            const adeptos = Object.values(this.db.adeptos).sort((a, b) => a.nome.localeCompare(b.nome));
+
+            if (adeptos.length === 0) {
+                content += `<p class="text-gray-400">Nenhum adepto cadastrado.</p>`;
+            } else {
+                content += `<div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+                                <ul class="divide-y divide-gray-700">`;
+                adeptos.forEach(adepto => {
+                    content += `
+                        <li class="p-4 flex justify-between items-center fade-in">
+                            <span class="text-lg text-gray-200">${adepto.nome}</span>
+                            <div>
+                                <button class="text-blue-400 hover:text-blue-300 mr-4" onclick="App.render('adeptoForm', App.db.adeptos['${adepto.id}'])">Editar</button>
+                                <button class="text-red-500 hover:text-red-400" onclick="App.render('financeiroDetalhe', App.db.adeptos['${adepto.id}'])">Ver Ficha</button>
+                            </div>
+                        </li>
+                    `;
+                });
+                content += `</ul></div>`;
+            }
+            return content;
+        },
+
+        /**
+         * Renderiza o formulário de cadastro/edição de adepto.
+         */
+        renderAdeptoForm: function(adepto = null) {
+            const isEditing = adepto !== null;
+            const data = adepto || {}; // Usa o adepto ou um objeto vazio
+
+            // Define valores padrão para campos não existentes
+            const defaults = {
+                id: isEditing ? data.id : new Date().getTime().toString(),
+                nome: '', dataNascimento: '', dataEntrada: '', estadoCivil: '',
+                endereco: '', complemento: '', email: '', redeSocialTipo: '',
+                redeSocialUser: '', telefone: '', atividade: '', mestreExu: '',
+                mestraPombagira: '', comoSoube: '', obrigacoes: '',
+                batismoStatus: 'nao_batizado', dataBatismo: '', alergias: '', medicacao: ''
+            };
+            
+            const adeptoData = { ...defaults, ...data };
+
+            return `
+                <h2 class="text-3xl font-semibold mb-6 text-red-400">${isEditing ? 'Editar Adepto' : 'Cadastrar Novo Adepto'}</h2>
+                <form id="adepto-form" class="card-gradient p-6 rounded-lg shadow-xl grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Coluna 1 -->
+                    <div class="space-y-4">
+                        <input type="hidden" id="id" value="${adeptoData.id}">
+                        
+                        <div>
+                            <label for="nome" class="block text-sm font-medium text-gray-300">Nome Completo</label>
+                            <input type="text" id="nome" value="${adeptoData.nome}" class="form-input mt-1 block w-full rounded-md shadow-sm" required>
+                        </div>
+                        
+                        <div>
+                            <label for="dataNascimento" class="block text-sm font-medium text-gray-300">Data de Nascimento</label>
+                            <input type="date" id="dataNascimento" value="${adeptoData.dataNascimento}" class="form-input mt-1 block w-full rounded-md shadow-sm" style="color-scheme: dark;">
+                        </div>
+                        
+                        <div>
+                            <label for="dataEntrada" class="block text-sm font-medium text-gray-300">Data de Entrada no TQPB</label>
+                            <input type="date" id="dataEntrada" value="${adeptoData.dataEntrada}" class="form-input mt-1 block w-full rounded-md shadow-sm" style="color-scheme: dark;">
+                        </div>
+                        
+                        <div>
+                            <label for="estadoCivil" class="block text-sm font-medium text-gray-300">Estado Civil</label>
+                            <input type="text" id="estadoCivil" value="${adeptoData.estadoCivil}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+                        
+                        <div>
+                            <label for="endereco" class="block text-sm font-medium text-gray-300">Endereço</label>
+                            <input type="text" id="endereco" value="${adeptoData.endereco}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+                        
+                        <div>
+                            <label for="complemento" class="block text-sm font-medium text-gray-300">Complemento</label>
+                            <input type="text" id="complemento" value="${adeptoData.complemento}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-300">E-mail</label>
+                            <input type="email" id="email" value="${adeptoData.email}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Rede Social</label>
+                            <div class="flex gap-2 mt-1">
+                                <select id="redeSocialTipo" class="form-input rounded-md shadow-sm w-1/3">
+                                    <option value="" ${adeptoData.redeSocialTipo === '' ? 'selected' : ''}>Nenhuma</option>
+                                    <option value="Instagram" ${adeptoData.redeSocialTipo === 'Instagram' ? 'selected' : ''}>Instagram</option>
+                                    <option value="TikTok" ${adeptoData.redeSocialTipo === 'TikTok' ? 'selected' : ''}>TikTok</option>
+                                    <option value="Facebook" ${adeptoData.redeSocialTipo === 'Facebook' ? 'selected' : ''}>Facebook</option>
+                                    <option value="Outra" ${adeptoData.redeSocialTipo === 'Outra' ? 'selected' : ''}>Outra</option>
+                                </select>
+                                <input type="text" id="redeSocialUser" value="${adeptoData.redeSocialUser}" placeholder="@usuario" class="form-input rounded-md shadow-sm w-2/3">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="telefone" class="block text-sm font-medium text-gray-300">Telefone para Contato</label>
+                            <input type="tel" id="telefone" value="${adeptoData.telefone}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+                    </div>
+                    
+                    <!-- Coluna 2 -->
+                    <div class="space-y-4">
+                        <div>
+                            <label for="atividade" class="block text-sm font-medium text-gray-300">Atividade Profissional</label>
+                            <input type="text" id="atividade" value="${adeptoData.atividade}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+                        
+                        <div>
+                            <label for="mestreExu" class="block text-sm font-medium text-gray-300">Mestre Exu</label>
+                            <input type="text" id="mestreExu" value="${adeptoData.mestreExu}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+                        
+                        <div>
+                            <label for="mestraPombagira" class="block text-sm font-medium text-gray-300">Mestra Pombagira</label>
+                            <input type="text" id="mestraPombagira" value="${adeptoData.mestraPombagira}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+                        
+                        <div>
+                            <label for="comoSoube" class="block text-sm font-medium text-gray-300">Como soube quem são os mestres de Quimbanda</label>
+                            <textarea id="comoSoube" rows="3" class="form-input mt-1 block w-full rounded-md shadow-sm">${adeptoData.comoSoube}</textarea>
+                        </div>
+                        
+                        <div>
+                            <label for="obrigacoes" class="block text-sm font-medium text-gray-300">Obrigações já realizadas espiritualmente</label>
+                            <textarea id="obrigacoes" rows="3" class="form-input mt-1 block w-full rounded-md shadow-sm">${adeptoData.obrigacoes}</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Batismo/Iniciação</label>
+                            <select id="batismoStatus" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                                <option value="nao_batizado" ${adeptoData.batismoStatus === 'nao_batizado' ? 'selected' : ''}>Não Batizado(a)</option>
+                                <option value="batizado" ${adeptoData.batismoStatus === 'batizado' ? 'selected' : ''}>Batizado(a)</option>
+                            </select>
+                        </div>
+
+                        <div id="data-batismo-container" class="${adeptoData.batismoStatus === 'batizado' ? 'block' : 'hidden'}">
+                            <label for="dataBatismo" class="block text-sm font-medium text-gray-300">Data de Batismo</label>
+                            <input type="date" id="dataBatismo" value="${adeptoData.dataBatismo}" class="form-input mt-1 block w-full rounded-md shadow-sm" style="color-scheme: dark;">
+                        </div>
+                        
+                        <div>
+                            <label for="alergias" class="block text-sm font-medium text-gray-300">Possui alguma alergia ou doença pré existente</label>
+                            <input type="text" id="alergias" value="${adeptoData.alergias}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+
+                        <div>
+                            <label for="medicacao" class="block text-sm font-medium text-gray-300">Utiliza algum tipo de medicação ou droga(s)</label>
+                            <input type="text" id="medicacao" value="${adeptoData.medicacao}" class="form-input mt-1 block w-full rounded-md shadow-sm">
+                        </div>
+                    </div>
+                    
+                    <!-- Botões -->
+                    <div class="md:col-span-2 flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
+                        <button type="submit" class="btn-primary px-6 py-2 rounded-md shadow-lg text-white w-full md:w-auto">
+                            ${isEditing ? 'Atualizar Adepto' : 'Salvar Cadastro'}
+                        </button>
+                        ${isEditing ? `
+                        <button type="button" class="btn-secondary px-6 py-2 rounded-md shadow-lg text-white w-full md:w-auto" onclick="App.exportarPDF(App.db.adeptos['${adeptoData.id}'])">
+                            Exportar PDF
+                        </button>
+                        ` : ''}
+                    </div>
+                </form>
+            `;
+        },
+
+        /**
+         * Inicializa os eventos do formulário do adepto (ex: mostrar/esconder data de batismo).
+         */
+        initAdeptoForm: function(adeptos, adepto) {
+            const form = document.getElementById('adepto-form');
+            if (!form) return;
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.salvarAdepto(adeptos, adepto, form);
+            });
+
+            // Lógica para mostrar/esconder data de batismo
+            const batismoStatus = document.getElementById('batismoStatus');
+            const dataBatismoContainer = document.getElementById('data-batismo-container');
+            
+            if (batismoStatus && dataBatismoContainer) {
+                batismoStatus.addEventListener('change', (e) => {
+                    if (e.target.value === 'batizado') {
+                        dataBatismoContainer.classList.remove('hidden');
+                    } else {
+                        dataBatismoContainer.classList.add('hidden');
+                        document.getElementById('dataBatismo').value = ''; // Limpa a data se não for batizado
+                    }
+                });
+            }
+        },
+
+        /**
+         * Salva os dados do formulário do adepto.
+         */
+        salvarAdepto: function(adeptos, adepto, form) {
+            const id = document.getElementById('id').value;
+            const isEditing = adepto !== null;
+
+            const dados = {
+                id: id,
+                nome: document.getElementById('nome').value,
+                dataNascimento: document.getElementById('dataNascimento').value,
+                dataEntrada: document.getElementById('dataEntrada').value,
+                estadoCivil: document.getElementById('estadoCivil').value,
+                endereco: document.getElementById('endereco').value,
+                complemento: document.getElementById('complemento').value,
+                email: document.getElementById('email').value,
+                redeSocialTipo: document.getElementById('redeSocialTipo').value,
+                redeSocialUser: document.getElementById('redeSocialUser').value,
+                telefone: document.getElementById('telefone').value,
+                atividade: document.getElementById('atividade').value,
+                mestreExu: document.getElementById('mestreExu').value,
+                mestraPombagira: document.getElementById('mestraPombagira').value,
+                comoSoube: document.getElementById('comoSoube').value,
+                obrigacoes: document.getElementById('obrigacoes').value,
+                batismoStatus: document.getElementById('batismoStatus').value,
+                dataBatismo: document.getElementById('dataBatismo').value,
+                alergias: document.getElementById('alergias').value,
+                medicacao: document.getElementById('medicacao').value,
+            };
+
+            // Mantém dados existentes (mensalidades, débitos) se estiver editando
+            if (isEditing) {
+                dados.mensalidades = adepto.mensalidades || {};
+                dados.debitos = adepto.debitos || [];
+            } else {
+                dados.mensalidades = {};
+                dados.debitos = [];
+            }
+            
+            // Limpa data de batismo se não for batizado
+            if (dados.batismoStatus === 'nao_batizado') {
+                dados.dataBatismo = '';
+            }
+
+            this.db.adeptos[id] = dados;
+            this.saveDB();
+            
+            // Volta para a lista de adeptos
+            this.render('adeptosList');
+        },
+
+        /**
+         * Exporta o cadastro do adepto para PDF.
+         */
+        exportarPDF: function(adepto) {
+            if (!adepto) return;
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(18);
+            doc.text("Ficha Cadastral - Templo de Quimbanda Povo do Buraco", 105, 20, { align: 'center' });
+
+            doc.setFontSize(12);
+            let y = 40;
+            const addField = (label, value) => {
+                if (value) {
+                    doc.setFont(undefined, 'bold');
+                    doc.text(label + ":", 15, y);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(value, 80, y);
+                    y += 10;
+                }
+            };
+
+            addField("Nome", adepto.nome);
+            addField("Data de Nascimento", this.formatDate(adepto.dataNascimento));
+            addField("Data de Entrada", this.formatDate(adepto.dataEntrada));
+            addField("Estado Civil", adepto.estadoCivil);
+            addField("Endereço", adepto.endereco);
+            addField("Complemento", adepto.complemento);
+            addField("E-mail", adepto.email);
+            addField("Rede Social", `${adepto.redeSocialTipo}: ${adepto.redeSocialUser}`);
+            addField("Telefone", adepto.telefone);
+            addField("Atividade Profissional", adepto.atividade);
+            
+            y += 5; // Espaçamento
+            
+            addField("Mestre Exu", adepto.mestreExu);
+            addField("Mestra Pombagira", adepto.mestraPombagira);
+            addField("Como soube dos Mestres", adepto.comoSoube);
+            addField("Obrigações Espirituais", adepto.obrigacoes);
+            
+            y += 5; // Espaçamento
+
+            const batismo = adepto.batismoStatus === 'batizado' ? `Sim (Data: ${this.formatDate(adepto.dataBatismo)})` : 'Não';
+            addField("Batizado(a)?", batismo);
+            addField("Alergias/Doenças", adepto.alergias);
+            addField("Medicação/Drogas", adepto.medicacao);
+
+            y += 30;
+            doc.line(40, y, 170, y); // Linha da assinatura
+            doc.text("Assinatura do Adepto", 105, y + 5, { align: 'center' });
+            
+            y += 15;
+            doc.setFontSize(10);
+            doc.text("Declaro que as informações acima são verdadeiras.", 105, y, { align: 'center' });
+
+            doc.save(`Ficha_Cadastral_${adepto.nome.split(' ')[0]}.pdf`);
+        },
+
+        // 4. SEÇÃO: FINANCEIRO
+
+        /**
+         * Renderiza a lista de adeptos para o controle financeiro.
+         */
+        renderFinanceiroList: function() {
+            let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Controle Financeiro</h2>`;
+            
+            const adeptos = Object.values(this.db.adeptos).sort((a, b) => a.nome.localeCompare(b.nome));
+
+            if (adeptos.length === 0) {
+                content += `<p class="text-gray-400">Nenhum adepto cadastrado. Cadastre um adepto primeiro.</p>`;
+            } else {
+                content += `<div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+                                <ul class="divide-y divide-gray-700">`;
+                adeptos.forEach(adepto => {
+                    content += `
+                        <li class="p-4 flex justify-between items-center fade-in cursor-pointer hover:bg-gray-700"
+                            onclick="App.render('financeiroDetalhe', App.db.adeptos['${adepto.id}'])">
+                            <span class="text-lg text-gray-200">${adepto.nome}</span>
+                            <span class="text-red-400">&rarr;</span>
+                        </li>
+                    `;
+                });
+                content += `</ul></div>`;
+            }
+            return content;
+        },
+
+        /**
+         * Renderiza os detalhes financeiros (mensalidades e débitos) de um adepto.
+         */
+        renderFinanceiroDetalhe: function(adepto) {
+            if (!adepto) return '<p class="text-red-500">Erro: Adepto não encontrado.</p>';
+
+            // Garante que o estado volátil do ano selecionado esteja correto
+            const anoAtual = new Date().getFullYear();
+            this.state.currentYear = this.state.currentAdeptoId === adepto.id ? this.state.currentYear : anoAtual;
+            const anoSelecionado = this.state.currentYear;
+            
+            const dataEntradaStr = adepto.dataEntrada;
+            const dataEntrada = dataEntradaStr ? this.parseDate(dataEntradaStr) : null;
+            
+            let anoInicio = 2024;
+            if (dataEntrada) {
+                // Começa a cobrar no mês seguinte à entrada
+                const dataPrimeiraCobranca = new Date(dataEntrada.getFullYear(), dataEntrada.getMonth() + 1, 1);
+                anoInicio = dataPrimeiraCobranca.getFullYear();
+            }
+
+            let content = `
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-6">
+                    <h2 class="text-3xl font-semibold text-red-400 mb-4 md:mb-0">Financeiro: ${adepto.nome}</h2>
+                    <div class="flex items-center gap-2">
+                        <label for="ano-select" class="text-gray-300">Ano:</label>
+                        <select id="ano-select" class="form-input rounded-md shadow-sm" onchange="App.state.currentYear = parseInt(this.value); App.atualizarFinanceiroDetalhe();">
+            `;
+            
+            // Gera as opções de ano, de 2024 até o ano atual + 1
+            for (let ano = 2024; ano <= anoAtual + 1; ano++) {
+                content += `<option value="${ano}" ${ano === anoSelecionado ? 'selected' : ''}>${ano}</option>`;
+            }
+            content += `</select></div></div>`;
+
+            // --- MENSALIDADES ---
+            content += `<div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
+                            <h3 class="text-xl font-semibold mb-4 text-gray-200">Mensalidades (Ano: ${anoSelecionado})</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            `;
+            
+            const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            const hoje = new Date();
+            const mesAtual = hoje.getMonth(); // 0-11
+            
+            for (let mesNum = 0; mesNum < 12; mesNum++) {
+                let statusClass = 'bg-gray-600'; // Neutro (cinza) por defeito
+                let statusObj = null;
+                const dataMesCorrente = new Date(anoSelecionado, mesNum, 1);
+                
+                // Verifica se o mês deve ser cobrado (não é histórico e é após a entrada)
+                let cobrarMes = false;
+                if (dataMesCorrente >= this.dataLimite) { // Regra: A partir de 2024
+                    if (dataEntrada) {
+                        const dataPrimeiraCobranca = new Date(dataEntrada.getFullYear(), dataEntrada.getMonth() + 1, 1);
+                        if (dataMesCorrente >= dataPrimeiraCobranca) {
+                            cobrarMes = true;
+                        }
+                    } else {
+                        // Se não tem data de entrada, cobra a partir de 2024
+                        cobrarMes = true; 
+                    }
+                }
+
+                if (cobrarMes) {
+                    // Tenta obter o status salvo
+                    if (adepto.mensalidades && adepto.mensalidades[anoSelecionado] && adepto.mensalidades[anoSelecionado][mesNum]) {
+                        statusObj = adepto.mensalidades[anoSelecionado][mesNum];
+                    } else {
+                        // Se não tem status salvo, verifica se é futuro ou pendente
+                        if (anoSelecionado > anoAtual || (anoSelecionado === anoAtual && mesNum > mesAtual)) {
+                            statusObj = { status: 'futuro' }; // Mês futuro, ainda não cobrável
+                        } else {
+                            statusObj = { status: 'pendente' }; // Mês passado/atual, não pago
+                        }
+                    }
+
+                    // Define a cor da bolinha
+                    switch (statusObj.status) {
+                        case 'pago':
+                            statusClass = 'bg-green-500';
+                            break;
+                        case 'pendente':
+                            statusClass = 'bg-red-500';
+                            break;
+                        case 'adiantado':
+                            statusClass = 'bg-yellow-400';
+                            break;
+                        case 'parcial':
+                            statusClass = 'bg-blue-500';
+                            break;
+                        case 'futuro':
+                        default:
+                            statusClass = 'bg-gray-600'; // Cinza (neutro)
+                            break;
+                    }
+                } else if (dataMesCorrente < this.dataLimite) {
+                    statusClass = 'bg-gray-500'; // Histórico
+                }
+
+                content += `
+                    <button class="btn-secondary p-3 rounded-md shadow-lg flex items-center justify-between transition-transform transform hover:scale-105 ${!cobrarMes ? 'opacity-50 cursor-not-allowed' : ''}" 
+                            ${cobrarMes ? `onclick="App.toggleMensalidadeStatus('${adepto.id}', ${anoSelecionado}, ${mesNum})"` : 'disabled'}>
+                        <span class="font-semibold text-white">${meses[mesNum]}</span>
+                        <span class="w-4 h-4 rounded-full ${statusClass} border-2 border-gray-800"></span>
+                    </button>
+                `;
+            }
+            content += `</div></div>`; // Fim do grid e do card
+
+            // --- OUTROS DÉBITOS (COMPRAS) ---
+            content += `<div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
+                            <h3 class="text-xl font-semibold mb-4 text-gray-200">Outros Débitos (Compras)</h3>
+                            <div class="space-y-4 mb-6">
+            `;
+
+            if (!adepto.debitos || adepto.debitos.length === 0) {
+                content += `<p class="text-gray-400">Nenhum débito (compra) cadastrado.</p>`;
+            } else {
+                adepto.debitos.forEach((debito, index) => {
+                    const dataDebito = this.parseDate(debito.data);
+                    const isHistorico = dataDebito && dataDebito < this.dataLimite;
+                    
+                    let statusClass, statusTexto, valorInfo;
+
+                    if (isHistorico) {
+                        statusClass = 'bg-gray-500';
+                        statusTexto = 'Pago (Histórico)';
+                        valorInfo = this.formatCurrency(debito.valorTotal);
+                    } else if (debito.status === 'pago') {
+                        statusClass = 'bg-green-500';
+                        statusTexto = 'Pago';
+                        valorInfo = this.formatCurrency(debito.valorTotal);
+                    } else if (debito.status === 'parcial') {
+                        statusClass = 'bg-blue-500';
+                        statusTexto = `Parcial (${this.formatCurrency(debito.valorPago)})`;
+                        valorInfo = `${this.formatCurrency(debito.valorTotal)} (Falta: ${this.formatCurrency(debito.valorTotal - debito.valorPago)})`;
+                    } else { // Pendente
+                        statusClass = 'bg-red-500';
+                        statusTexto = 'Pendente';
+                        valorInfo = this.formatCurrency(debito.valorTotal);
+                    }
+                    
+                    content += `
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-gray-700 rounded-md gap-2">
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-200">${this.formatDate(debito.data)} - ${debito.obs}</p>
+                                <p class="text-sm text-gray-300">${valorInfo}</p>
+                            </div>
+                            <button class="w-full md:w-auto px-4 py-2 rounded-md shadow-lg text-white text-sm font-medium ${statusClass} ${isHistorico ? 'opacity-70 cursor-not-allowed' : ''}"
+                                    onclick="App.toggleDebitoStatus('${adepto.id}', ${index})" ${isHistorico ? 'disabled' : ''}>
+                                ${statusTexto} ${!isHistorico ? '(Mudar)' : ''}
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+            content += `</div>`; // Fim do space-y
+
+            // Formulário para adicionar novo débito
+            content += `
+                <form id="add-debito-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-700 pt-6">
+                    <input type="date" id="debito-data" class="form-input rounded-md shadow-sm" style="color-scheme: dark;" required>
+                    <input type="text" id="debito-obs" placeholder="Observação" class="form-input rounded-md shadow-sm" required>
+                    <input type="number" id="debito-valor" placeholder="Valor (R$)" step="0.01" min="0.01" class="form-input rounded-md shadow-sm" required>
+                    <div class="md:col-span-3">
+                        <button type="button" class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white" onclick="App.adicionarDebito('${adepto.id}')">Adicionar Débito</button>
+                    </div>
+                </form>
+            </div>`;
+
+            // --- RODAPÉ: RESUMO FINANCEIRO ---
+            const saldo = this.calcularSaldo(adepto);
+            let saldoClass = 'text-green-500';
+            if (saldo.total < 0) saldoClass = 'text-red-500';
+            else if (saldo.total === 0) saldoClass = 'text-gray-200';
+
+            content += `
+                <footer class="sticky bottom-0 bg-gray-900 bg-opacity-90 backdrop-blur-sm p-4 rounded-t-lg shadow-xl mt-6 border-t border-gray-700">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Resumo Financeiro</h3>
+                    <div class="flex justify-between items-center text-lg">
+                        <span class="text-gray-300">Saldo Atual:</span>
+                        <span class="font-bold ${saldoClass} text-2xl">${this.formatCurrency(saldo.total)}</span>
+                    </div>
+                    ${saldo.total > 0 ? `<p class="text-sm text-green-400 text-right">Crédito de pagamentos adiantados.</p>` : ''}
+                    ${saldo.total < 0 ? `<p class="text-sm text-red-400 text-right">Dívida total de ${this.formatCurrency(Math.abs(saldo.total))}.</p>` : ''}
+                </footer>
+            `;
+
+            return content;
+        },
+
+        /**
+         * Redesenha a página de detalhes financeiros (usado ao trocar o ano).
+         */
+        atualizarFinanceiroDetalhe: function() {
+            const adepto = this.db.adeptos[this.state.currentAdeptoId];
+            if (adepto) {
+                this.render('financeiroDetalhe', adepto);
+            }
+        },
+
+        /**
+         * Lógica de clique para o status da mensalidade.
+         */
+        toggleMensalidadeStatus: function(adeptoId, ano, mes) {
+            const adepto = this.db.adeptos[adeptoId];
+            if (!adepto) return;
+            
+            // Garante que a estrutura exista
+            if (!adepto.mensalidades) adepto.mensalidades = {};
+            if (!adepto.mensalidades[ano]) adepto.mensalidades[ano] = {};
+            
+            const statusAtualObj = adepto.mensalidades[ano] ? adepto.mensalidades[ano][mes] : null;
+            let statusAtual = 'pendente'; // Padrão
+            
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            const mesAtual = hoje.getMonth();
+            const isFuturo = ano > anoAtual || (ano === anoAtual && mes > mesAtual);
+
+            if (statusAtualObj) {
+                statusAtual = statusAtualObj.status;
+            } else if (isFuturo) {
+                statusAtual = 'futuro';
+            }
+
+            // Lógica do ciclo de cliques
+            if (isFuturo) {
+                // Ciclo para meses futuros: Neutro -> Adiantado -> Neutro
+                if (statusAtual === 'futuro') {
+                    adepto.mensalidades[ano][mes] = { status: 'adiantado', valor: 150.00 }; // Pago adiantado
+                } else { // 'adiantado'
+                    adepto.mensalidades[ano][mes] = { status: 'futuro', valor: 0 }; // Volta a ser neutro
+                }
+            } else {
+                // Ciclo para meses atuais/passados: Pendente -> Pago -> Parcial -> Pendente
+                if (statusAtual === 'pendente') {
+                    adepto.mensalidades[ano][mes] = { status: 'pago', valor: 150.00 };
+                } else if (statusAtual === 'pago') {
+                    // Mostra o modal para inserir o valor parcial
+                    this.showValorParcialModal(adeptoId, ano, mes, 'mensalidade');
+                    // O salvamento é feito pelo modal
+                } else { // 'parcial'
+                    adepto.mensalidades[ano][mes] = { status: 'pendente', valor: 0 };
+                }
+            }
+
+            this.saveDB();
+            this.atualizarFinanceiroDetalhe(); // Redesenha a página
+        },
+
+        /**
+         * Lógica de clique para o status dos débitos (compras).
+         */
+        toggleDebitoStatus: function(adeptoId, debitoIndex) {
+            const adepto = this.db.adeptos[adeptoId];
+            if (!adepto || !adepto.debitos || !adepto.debitos[debitoIndex]) return;
+
+            const debito = adepto.debitos[debitoIndex];
+            
+            // Não permite alterar status de débito histórico
+            const dataDebito = this.parseDate(debito.data);
+            if (dataDebito && dataDebito < this.dataLimite) {
+                return;
+            }
+
+            // Ciclo: Pendente -> Pago -> Parcial -> Pendente
+            if (debito.status === 'pendente') {
+                debito.status = 'pago';
+                debito.valorPago = debito.valorTotal;
+                this.saveDB();
+                this.atualizarFinanceiroDetalhe();
+            } else if (debito.status === 'pago') {
+                // Mostra o modal para valor parcial
+                this.showValorParcialModal(adeptoId, null, null, 'debito', debitoIndex);
+                // O salvamento é feito pelo modal
+            } else { // 'parcial'
+                debito.status = 'pendente';
+                debito.valorPago = 0;
+                this.saveDB();
+                this.atualizarFinanceiroDetalhe();
+            }
+        },
+
+        /**
+         * Adiciona um novo débito (compra) ao adepto.
+         */
+        adicionarDebito: function(adeptoId) {
+            const data = document.getElementById('debito-data').value;
+            const obs = document.getElementById('debito-obs').value;
+            const valor = parseFloat(document.getElementById('debito-valor').value);
+
+            if (data && obs && valor > 0) {
+                const novoDebito = {
+                    data: data,
+                    obs: obs,
+                    valorTotal: valor,
+                    status: 'pendente', // Novo formato
+                    valorPago: 0
+                };
+                
+                if (!this.db.adeptos[adeptoId].debitos) {
+                    this.db.adeptos[adeptoId].debitos = [];
+                }
+                
+                this.db.adeptos[adeptoId].debitos.push(novoDebito);
+                this.saveDB();
+                this.atualizarFinanceiroDetalhe(); // Redesenha
+            } else {
+                alert("Por favor, preencha todos os campos do débito.");
+            }
+        },
+
+        // 5. SEÇÃO: CUSTOS
+        
+        /**
+         * Renderiza a página de custos do templo.
+         */
+        renderCustos: function() {
+            let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Custos do Templo</h2>`;
+            
+            // Formulário para adicionar novo custo
+            content += `
+                <div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-200">Adicionar Novo Custo</h3>
+                    <form id="add-custo-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <input type="date" id="custo-data" class="form-input rounded-md shadow-sm" style="color-scheme: dark;" required>
+                        <input type="text" id="custo-obs" placeholder="Observação" class="form-input rounded-md shadow-sm" required>
+                        <input type="number" id="custo-valor" placeholder="Valor (R$)" step="0.01" min="0.01" class="form-input rounded-md shadow-sm" required>
+                        <div class="md:col-span-3">
+                            <button type="button" class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white" onclick="App.adicionarCusto()">Adicionar Custo</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            // Lista de custos
+            content += `<div class="card-gradient p-6 rounded-lg shadow-xl">
+                            <h3 class="text-xl font-semibold mb-4 text-gray-200">Custos Registrados</h3>
+                            <div class="space-y-4">
+            `;
+            
+            let totalCustos = 0;
+            let totalAPagar = 0;
+            const custosOrdenados = [...this.db.custos].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+            if (custosOrdenados.length === 0) {
+                content += `<p class="text-gray-400">Nenhum custo registrado.</p>`;
+            } else {
+                custosOrdenados.forEach((custo, index) => {
+                    const originalIndex = this.db.custos.indexOf(custo); // Encontra o índice original
+                    totalCustos += custo.valor;
+                    
+                    const dataCusto = this.parseDate(custo.data);
+                    const isHistorico = dataCusto && dataCusto < this.dataLimite;
+
+                    let statusClass, statusTexto;
+                    if (isHistorico) {
+                        statusClass = 'bg-gray-500';
+                        statusTexto = 'Pago (Histórico)';
+                    } else if (custo.pago) {
+                        statusClass = 'bg-green-500';
+                        statusTexto = 'Pago';
+                    } else {
+                        statusClass = 'bg-red-500';
+                        statusTexto = 'Pendente';
+                        totalAPagar += custo.valor;
+                    }
+                    
+                    content += `
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-gray-700 rounded-md gap-2">
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-200">${this.formatDate(custo.data)} - ${custo.obs}</p>
+                                <p class="text-sm text-gray-300">${this.formatCurrency(custo.valor)}</p>
+                            </div>
+                            <button class="w-full md:w-auto px-4 py-2 rounded-md shadow-lg text-white text-sm font-medium ${statusClass} ${isHistorico ? 'opacity-70 cursor-not-allowed' : ''}"
+                                    onclick="App.toggleCustoStatus(${originalIndex})" ${isHistorico ? 'disabled' : ''}>
+                                ${statusTexto} ${!isHistorico ? '(Mudar)' : ''}
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+            content += `</div>`; // Fim do space-y
+            
+            // Rodapé com totais
+            content += `
+                <footer class="border-t border-gray-700 mt-6 pt-4">
+                    <div class="flex justify-between items-center text-lg mb-2">
+                        <span class="text-gray-300">Total de Custos (Todos):</span>
+                        <span class="font-bold text-gray-200">${this.formatCurrency(totalCustos)}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-lg">
+                        <span class="text-gray-300">Total Pendente (A Pagar):</span>
+                        <span class="font-bold text-red-500">${this.formatCurrency(totalAPagar)}</span>
+                    </div>
+                </footer>
+            </div>`; // Fim do card
+
+            return content;
+        },
+
+        /**
+         * Adiciona um novo custo à base de dados.
+         */
+        adicionarCusto: function() {
+            const data = document.getElementById('custo-data').value;
+            const obs = document.getElementById('custo-obs').value;
+            const valor = parseFloat(document.getElementById('custo-valor').value);
+
+            if (data && obs && valor > 0) {
+                const novoCusto = {
+                    data: data,
+                    obs: obs,
+                    valor: valor,
+                    pago: false // Padrão é pendente
+                };
+                
+                this.db.custos.push(novoCusto);
+                this.saveDB();
+                this.render('custos'); // Redesenha a página
+            } else {
+                alert("Por favor, preencha todos os campos do custo.");
+            }
+        },
+
+        /**
+         * Alterna o status de pagamento de um custo.
+         */
+        toggleCustoStatus: function(index) {
+            const custo = this.db.custos[index];
+            if (!custo) return;
+
+            // Não permite alterar status de custo histórico
+            const dataCusto = this.parseDate(custo.data);
+            if (dataCusto && dataCusto < this.dataLimite) {
+                return;
+            }
+
+            custo.pago = !custo.pago; // Alterna
+            this.saveDB();
+            this.render('custos'); // Redesenha
+        },
+
+        // 6. SEÇÃO: INADIMPLÊNCIA
+
+        /**
+         * Renderiza a lista de adeptos inadimplentes.
+         */
+        renderInadimplencia: function() {
+            let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Adeptos em Inadimplência</h2>`;
+            let totalDividaGeral = 0;
+            const inadimplentes = [];
+
+            Object.values(this.db.adeptos).forEach(adepto => {
+                const saldo = this.calcularSaldo(adepto);
+                if (saldo.total < 0) {
+                    inadimplentes.push({ ...adepto, divida: saldo.total });
+                    totalDividaGeral += saldo.total;
+                }
+            });
+
+            inadimplentes.sort((a, b) => a.nome.localeCompare(b.nome));
+
+            if (inadimplentes.length === 0) {
+                content += `<p class="text-gray-400">Nenhum adepto com pendências financeiras.</p>`;
+            } else {
+                content += `<div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+                                <ul class="divide-y divide-gray-700">`;
+                inadimplentes.forEach(adepto => {
+                    content += `
+                        <li class="p-4 flex justify-between items-center fade-in cursor-pointer hover:bg-gray-700"
+                            onclick="App.render('inadimplenciaDetalhe', App.db.adeptos['${adepto.id}'])">
+                            <div>
+                                <span class="text-lg text-gray-200">${adepto.nome}</span>
+                                <p class="text-sm text-red-400">${this.formatCurrency(adepto.divida)}</p>
+                            </div>
+                            <span class="text-red-400">&rarr;</span>
+                        </li>
+                    `;
+                });
+                content += `</ul></div>`;
+            }
+
+            // Rodapé com total geral
+            content += `
+                <footer class="bg-gray-900 p-4 rounded-b-lg shadow-xl mt-6 border-t border-gray-700">
+                    <div class="flex justify-between items-center text-lg">
+                        <span class="text-gray-300">Dívida Total (Geral):</span>
+                        <span class="font-bold text-red-500 text-2xl">${this.formatCurrency(totalDividaGeral)}</span>
+                    </div>
+                </footer>
+            `;
+
+            return content;
+        },
+
+        /**
+         * Renderiza os detalhes da inadimplência de um adepto.
+         */
+        renderInadimplenciaDetalhe: function(adepto) {
+            if (!adepto) return '<p class="text-red-500">Erro: Adepto não encontrado.</p>';
+
+            let content = `<h2 class="text-3xl font-semibold text-red-400 mb-6">Detalhe da Dívida: ${adepto.nome}</h2>`;
+            const saldo = this.calcularSaldo(adepto);
+
+            // Mensalidades pendentes
+            content += `<div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
+                            <h3 class="text-xl font-semibold mb-4 text-gray-200">Mensalidades Pendentes</h3>
+                            <div class="space-y-2">
+            `;
+            
+            let temMensalidadePendente = false;
+            if (adepto.mensalidades) {
+                Object.keys(adepto.mensalidades).sort().forEach(ano => {
+                    if (parseInt(ano) < 2024) return; // Ignora histórico
+                    
+                    Object.keys(adepto.mensalidades[ano]).sort((a,b) => a-b).forEach(mes => {
+                        const statusObj = adepto.mensalidades[ano][mes];
+                        if (statusObj.status === 'pendente') {
+                            const mesNome = new Date(ano, mes, 1).toLocaleString('pt-br', { month: 'long' });
+                            content += `<p class="text-gray-300">Mensalidade de ${mesNome}/${ano} (${this.formatCurrency(-150)})</p>`;
+                            temMensalidadePendente = true;
+                        } else if (statusObj.status === 'parcial') {
+                            const mesNome = new Date(ano, mes, 1).toLocaleString('pt-br', { month: 'long' });
+                            content += `<p class="text-gray-300">Restante de ${mesNome}/${ano} (${this.formatCurrency(statusObj.valor - 150)})</p>`;
+                            temMensalidadePendente = true;
+                        }
+                    });
+                });
+            }
+            if (!temMensalidadePendente) {
+                content += `<p class="text-gray-400">Nenhuma mensalidade pendente.</p>`;
+            }
+            content += `</div></div>`;
+
+            // Débitos (compras) pendentes
+            content += `<div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
+                            <h3 class="text-xl font-semibold mb-4 text-gray-200">Compras Pendentes</h3>
+                            <div class="space-y-2">
+            `;
+            
+            let temDebitoPendente = false;
+            if (adepto.debitos) {
+                adepto.debitos.forEach(debito => {
+                    const dataDebito = this.parseDate(debito.data);
+                    if (dataDebito && dataDebito < this.dataLimite) {
+                        return; // Ignora histórico
+                    }
+
+                    if (debito.status === 'pendente') {
+                        content += `<p class="text-gray-300">${this.formatDate(debito.data)} - ${debito.obs} (${this.formatCurrency(-debito.valorTotal)})</p>`;
+                        temDebitoPendente = true;
+                    } else if (debito.status === 'parcial') {
+                        content += `<p class="text-gray-300">Restante de ${debito.obs} (${this.formatCurrency(debito.valorPago - debito.valorTotal)})</p>`;
+                        temDebitoPendente = true;
+                    }
+                });
+            }
+            if (!temDebitoPendente) {
+                content += `<p class="text-gray-400">Nenhuma compra pendente.</p>`;
+            }
+            content += `</div></div>`;
+            
+            // Rodapé com total
+            content += `
+                <footer class="bg-gray-900 p-4 rounded-b-lg shadow-xl mt-6 border-t border-gray-700">
+                    <div class="flex justify-between items-center text-lg">
+                        <span class="text-gray-300">Dívida Total do Adepto:</span>
+                        <span class="font-bold text-red-500 text-2xl">${this.formatCurrency(saldo.total)}</span>
+                    </div>
+                </footer>
+            `;
+
+            return content;
+        },
+
+        /**
+         * Calcula o saldo total de um adepto (mensalidades + débitos).
+         * Negativo = devendo; Positivo = crédito; Zero = em dia.
+         */
+        calcularSaldo: function(adepto) {
+            if (!adepto) return { total: 0, dividaMensalidades: 0, dividaDebitos: 0, credito: 0 };
+            
+            let dividaMensalidades = 0;
+            let dividaDebitos = 0;
+            let credito = 0;
+
+            const hoje = new Date();
+            const anoAtual = hoje.getFullYear();
+            const mesAtual = hoje.getMonth(); // 0-11
+            const dataEntrada = adepto.dataEntrada ? this.parseDate(adepto.dataEntrada) : null;
+
+            // 1. Cálculo das Mensalidades
+            if (dataEntrada) {
+                const dataPrimeiraCobranca = new Date(dataEntrada.getFullYear(), dataEntrada.getMonth() + 1, 1);
+                
+                // Itera de 2024 até o ano atual
+                for (let ano = 2024; ano <= anoAtual; ano++) {
+                    const mesFinal = (ano === anoAtual) ? mesAtual : 11;
+                    
+                    for (let mes = 0; mes <= mesFinal; mes++) {
+                        const dataMesCorrente = new Date(ano, mes, 1);
+                        
+                        // Pula se for antes da data limite (2024)
+                        if (dataMesCorrente < this.dataLimite) continue; 
+                        
+                        // Só cobra se for no mês seguinte à entrada ou depois
+                        if (dataMesCorrente >= dataPrimeiraCobranca) {
+                            let statusObj = null;
+                            if (adepto.mensalidades && adepto.mensalidades[ano] && adepto.mensalidades[ano][mes]) {
+                                statusObj = adepto.mensalidades[ano][mes];
+                            }
+                            
+                            if (statusObj) {
+                                if (statusObj.status === 'pendente') {
+                                    dividaMensalidades += 150;
+                                } else if (statusObj.status === 'parcial') {
+                                    dividaMensalidades += (150 - statusObj.valor);
+                                }
+                                // 'pago' e 'adiantado' (de meses passados) não somam dívida
+                            } else {
+                                // Mês passado/atual sem registro = pendente
+                                dividaMensalidades += 150;
+                            }
+                        }
+                    }
+                }
+
+                // 2. Cálculo do Crédito (Pagamentos Adiantados de meses futuros)
+                if (adepto.mensalidades) {
+                    Object.keys(adepto.mensalidades).forEach(ano => {
+                        const anoNum = parseInt(ano);
+                        Object.keys(adepto.mensalidades[ano]).forEach(mes => {
+                            const mesNum = parseInt(mes);
+                            const statusObj = adepto.mensalidades[ano][mes];
+                            
+                            // Se for um mês futuro E estiver 'adiantado'
+                            if (anoNum > anoAtual || (anoNum === anoAtual && mesNum > mesAtual)) {
+                                if (statusObj && statusObj.status === 'adiantado') {
+                                    credito += statusObj.valor;
+                                }
+                            }
+                        });
+                    });
+                }
+            }
+
+            // 3. Cálculo dos Débitos (Compras)
+            if (adepto.debitos) {
+                adepto.debitos.forEach(debito => {
+                    const dataDebito = this.parseDate(debito.data);
+                    // Pula se for antes da data limite (2024)
+                    if (dataDebito && dataDebito < this.dataLimite) {
+                        return; // Ignora débito histórico
+                    }
+
+                    if (debito.status === 'pendente') {
+                        dividaDebitos += debito.valorTotal;
+                    } else if (debito.status === 'parcial') {
+                        dividaDebitos += (debito.valorTotal - debito.valorPago);
+                    }
+                    // 'pago' não soma dívida
+                });
+            }
+
+            // 4. Cálculo Final
+            const totalDivida = dividaMensalidades + dividaDebitos;
+            const saldoTotal = credito - totalDivida;
+
+            return {
+                total: saldoTotal,
+                dividaMensalidades: -dividaMensalidades,
+                dividaDebitos: -dividaDebitos,
+                credito: credito
+            };
+        },
+
+        // 7. SEÇÃO: CAPITAL
+
+        /**
+         * Renderiza a página de Capital (Balanço).
+         */
+        renderCapital: function() {
+            let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Capital (Balanço)</h2>`;
+            
+            const relatorio = this.getCapitalReportData();
+            const anos = Object.keys(relatorio).sort((a, b) => b - a);
+
+            if (anos.length === 0) {
+                content += `<p class="text-gray-400">Nenhum dado financeiro registrado (mensalidades, débitos ou custos).</p>`;
+                return content;
+            }
+
+            // Total Geral
+            const totalGeral = anos.reduce((acc, ano) => {
+                acc.entradas += relatorio[ano].totalAno.entradas;
+                acc.saidas += relatorio[ano].totalAno.saidas;
+                acc.balanco += relatorio[ano].totalAno.balanco;
+                return acc;
+            }, { entradas: 0, saidas: 0, balanco: 0 });
+
+            content += `
+                <div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-4">Balanço Geral (Consolidado)</h3>
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p class="text-sm text-gray-400">Total Entradas</p>
+                            <p class="text-2xl font-bold text-green-500">${this.formatCurrency(totalGeral.entradas)}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-400">Total Saídas</p>
+                            <p class="text-2xl font-bold text-red-500">${this.formatCurrency(totalGeral.saidas)}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-400">Balanço Final</p>
+                            <p class="text-2xl font-bold ${totalGeral.balanco >= 0 ? 'text-green-500' : 'text-red-500'}">${this.formatCurrency(totalGeral.balanco)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Detalhamento por Ano/Mês
+            content += `<div class="space-y-6">`;
+            anos.forEach(ano => {
+                content += `
+                    <div class="card-gradient rounded-lg shadow-xl overflow-hidden">
+                        <header class="p-4 bg-gray-800 border-b border-gray-700">
+                            <h3 class="text-2xl font-semibold text-red-400">Ano: ${ano}</h3>
+                        </header>
+                        <div class="p-4">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="border-b border-gray-700">
+                                        <th class="py-2 text-gray-400">Mês</th>
+                                        <th class="py-2 text-green-500 text-right">Entradas</th>
+                                        <th class="py-2 text-red-500 text-right">Saídas</th>
+                                        <th class="py-2 text-gray-400 text-right">Balanço</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                const meses = ["Jan", "Fev", "Mar", "Abr", "Maio", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                for (let i = 0; i < 12; i++) {
+                    const mesData = relatorio[ano].meses[i];
+                    if (mesData.entradas > 0 || mesData.saidas > 0) { // Só mostra meses com movimento
+                        content += `
+                            <tr class="border-b border-gray-700">
+                                <td class="py-2 text-gray-200">${meses[i]}</td>
+                                <td class="py-2 text-green-400 text-right">${this.formatCurrency(mesData.entradas)}</td>
+                                <td class="py-2 text-red-400 text-right">${this.formatCurrency(mesData.saidas)}</td>
+                                <td class="py-2 ${mesData.balanco >= 0 ? 'text-gray-200' : 'text-red-400'} text-right">${this.formatCurrency(mesData.balanco)}</td>
+                            </tr>
+                        `;
+                    }
+                }
+                
+                content += `
+                                </tbody>
+                                <tfoot class="border-t-2 border-gray-600 font-bold">
+                                    <tr>
+                                        <td class="py-3 text-white">Total Ano</td>
+                                        <td class="py-3 text-green-500 text-right">${this.formatCurrency(relatorio[ano].totalAno.entradas)}</td>
+                                        <td class="py-3 text-red-500 text-right">${this.formatCurrency(relatorio[ano].totalAno.saidas)}</td>
+                                        <td class="py-3 ${relatorio[ano].totalAno.balanco >= 0 ? 'text-green-500' : 'text-red-500'} text-right">${this.formatCurrency(relatorio[ano].totalAno.balanco)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+            content += `</div>`;
+
+            return content;
+        },
+
+        /**
+         * Processa todos os dados e retorna um objeto de relatório para o Capital.
+         */
+        getCapitalReportData: function() {
+            const relatorio = {}; // Ex: { 2024: { meses: [ ... ], totalAno: { ... } } }
+
+            const initAno = (ano) => {
+                if (!relatorio[ano]) {
+                    relatorio[ano] = {
+                        meses: Array(12).fill(null).map(() => ({ entradas: 0, saidas: 0, balanco: 0 })),
+                        totalAno: { entradas: 0, saidas: 0, balanco: 0 }
+                    };
+                }
+            };
+            
+            // 1. Processar Entradas (Mensalidades e Débitos Pagos/Parciais)
+            if (this.db.adeptos) {
+                Object.values(this.db.adeptos).forEach(adepto => {
+                    // Mensalidades
+                    if (adepto.mensalidades) {
+                        Object.keys(adepto.mensalidades).forEach(ano => {
+                            const anoNum = parseInt(ano);
+                            if (isNaN(anoNum) || anoNum < 2024) return; // Ignora histórico
+                            initAno(anoNum);
+                            Object.keys(adepto.mensalidades[ano]).forEach(mes => {
+                                const mesNum = parseInt(mes);
+                                if (isNaN(mesNum)) return;
+                                const statusObj = adepto.mensalidades[ano][mes];
+                                
+                                if (statusObj && (statusObj.status === 'pago' || statusObj.status === 'adiantado' || statusObj.status === 'parcial')) {
+                                    const valor = statusObj.valor || 0;
+                                    relatorio[anoNum].meses[mesNum].entradas += valor;
+                                    relatorio[anoNum].meses[mesNum].balanco += valor;
+                                    relatorio[anoNum].totalAno.entradas += valor;
+                                    relatorio[anoNum].totalAno.balanco += valor;
+                                }
+                            });
+                        });
+                    }
+                    // Débitos (Compras)
+                    if (adepto.debitos) {
+                        adepto.debitos.forEach(debito => {
+                            const data = this.parseDate(debito.data);
+                            if (!data || data < this.dataLimite) return; // Ignora histórico
+                            
+                            if (debito.status === 'pago' || debito.status === 'parcial') {
+                                const anoNum = data.getFullYear();
+                                const mesNum = data.getMonth();
+                                initAno(anoNum);
+                                
+                                const valor = debito.valorPago || 0;
+                                relatorio[anoNum].meses[mesNum].entradas += valor;
+                                relatorio[anoNum].meses[mesNum].balanco += valor;
+                                relatorio[anoNum].totalAno.entradas += valor;
+                                relatorio[anoNum].totalAno.balanco += valor;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 2. Processar Saídas (Custos Pagos)
+            if (this.db.custos) {
+                this.db.custos.forEach(custo => {
+                    const data = this.parseDate(custo.data);
+                    if (!data || data < this.dataLimite) return; // Ignora histórico
+
+                    if (custo.pago) {
+                        const anoNum = data.getFullYear();
+                        const mesNum = data.getMonth();
+                        initAno(anoNum);
+                        
+                        const valor = custo.valor || 0;
+                        relatorio[anoNum].meses[mesNum].saidas += valor;
+                        relatorio[anoNum].meses[mesNum].balanco -= valor;
+                        relatorio[anoNum].totalAno.saidas += valor;
+                        relatorio[anoNum].totalAno.balanco -= valor;
+                    }
+                });
+            }
+            
+            return relatorio;
+        },
+
+        // 8. SEÇÃO: EXPORTAÇÃO
+
+        /**
+         * Exporta todos os dados para um arquivo Excel (.xlsx).
+         */
+        exportarExcel: async function() {
+            const btn = document.getElementById('btn-export-excel');
+            if (!btn) return;
+            
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Exportando...';
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'btn-spinner');
+
+            try {
+                const wb = XLSX.utils.book_new();
+
+                // --- Aba 1: Adeptos (Dados Cadastrais) ---
+                const adeptosData = Object.values(this.db.adeptos).map(a => ({
+                    Nome: a.nome,
+                    "Data Entrada": this.formatDate(a.dataEntrada),
+                    "Data Nasc.": this.formatDate(a.dataNascimento),
+                    "Estado Civil": a.estadoCivil,
+                    Endereço: a.endereco,
+                    Email: a.email,
+                    Telefone: a.telefone,
+                    Atividade: a.atividade,
+                    "Mestre Exu": a.mestreExu,
+                    "Mestra Pombagira": a.mestraPombagira,
+                    Batizado: a.batismoStatus === 'batizado' ? `Sim (${this.formatDate(a.dataBatismo)})` : 'Não',
+                    Alergias: a.alergias,
+                    Medicação: a.medicacao,
+                    Obrigações: a.obrigacoes,
+                    "Como Soube": a.comoSoube
+                }));
+                const wsAdeptos = XLSX.utils.json_to_sheet(adeptosData);
+                XLSX.utils.book_append_sheet(wb, wsAdeptos, "Adeptos (Cadastro)");
+
+                // --- Aba 2: Financeiro (Resumo) ---
+                const financeiroData = Object.values(this.db.adeptos).map(a => {
+                    const saldo = this.calcularSaldo(a);
+                    return {
+                        Adepto: a.nome,
+                        "Saldo Total (R$)": saldo.total,
+                        "Dívida Mensalidades (R$)": saldo.dividaMensalidades,
+                        "Dívida Compras (R$)": saldo.dividaDebitos,
+                        "Crédito (R$)": saldo.credito
+                    };
+                }).sort((a,b) => a.Adepto.localeCompare(b.Adepto));
+                const wsFinanceiro = XLSX.utils.json_to_sheet(financeiroData);
+                XLSX.utils.book_append_sheet(wb, wsFinanceiro, "Financeiro (Resumo)");
+
+                // --- Aba 3: Custos ---
+                const custosData = this.db.custos.map(c => ({
+                    Data: this.formatDate(c.data),
+                    Observação: c.obs,
+                    "Valor (R$)": c.valor,
+                    Status: c.pago ? 'Pago' : 'Pendente'
+                })).sort((a,b) => new Date(a.Data) - new Date(b.Data));
+                const wsCustos = XLSX.utils.json_to_sheet(custosData);
+                XLSX.utils.book_append_sheet(wb, wsCustos, "Custos do Templo");
+
+                // --- Aba 4: Capital (Balanço) ---
+                const capitalReport = this.getCapitalReportData();
+                const capitalData = [];
+                const meses = ["Jan", "Fev", "Mar", "Abr", "Maio", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                
+                Object.keys(capitalReport).sort((a,b) => a - b).forEach(ano => {
+                    // Linha do Ano
+                    capitalData.push({ Mês: `ANO: ${ano}`, Entradas: null, Saídas: null, Balanço: null });
+                    // Linhas dos Meses
+                    for (let i = 0; i < 12; i++) {
+                        const mesData = capitalReport[ano].meses[i];
+                        if (mesData.entradas > 0 || mesData.saidas > 0) {
+                            capitalData.push({
+                                Mês: meses[i],
+                                Entradas: mesData.entradas,
+                                Saídas: mesData.saidas,
+                                Balanço: mesData.balanco
+                            });
+                        }
+                    }
+                    // Linha Total Ano
+                    const totalAno = capitalReport[ano].totalAno;
+                    capitalData.push({
+                        Mês: "Total Ano",
+                        Entradas: totalAno.entradas,
+                        Saídas: totalAno.saidas,
+                        Balanço: totalAno.balanco
+                    });
+                    // Linha em branco
+                    capitalData.push({}); 
+                });
+                const wsCapital = XLSX.utils.json_to_sheet(capitalData);
+                XLSX.utils.book_append_sheet(wb, wsCapital, "Capital (Balanço)");
+
+
+                // Gera e baixa o arquivo
+                XLSX.writeFile(wb, "Backup_TQPB.xlsx");
+            
+            } catch (error) {
+                console.error("Erro ao exportar Excel:", error);
+                alert("Ocorreu um erro ao gerar o arquivo Excel.");
+            } finally {
+                // Restaura o botão
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'btn-spinner');
+            }
+        },
+
+        // 9. FUNÇÕES UTILITÁRIAS
+        
+        /**
+         * Converte uma string 'yyyy-mm-dd' para um objeto Date (UTC-safe).
+         */
+        parseDate: function(dateStr) {
+            if (!dateStr || typeof dateStr !== 'string') return null;
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return null;
+            // new Date(ano, mes (0-11), dia)
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        },
+
+        /**
+         * Formata um valor numérico para a moeda BRL.
+         */
+        formatCurrency: function(value) {
+            if (typeof value !== 'number') value = 0;
+            return value.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
+        },
+        
+        /**
+         * Formata uma string 'yyyy-mm-dd' para 'dd/mm/yyyy'.
+         */
+        formatDate: function(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = this.parseDate(dateStr);
+            if (!date) return 'Data Inválida';
+            // Adiciona 1 no mês (pois getMonth é 0-11)
+            const dia = String(date.getDate()).padStart(2, '0');
+            const mes = String(date.getMonth() + 1).padStart(2, '0');
+            const ano = date.getFullYear();
+            return `${dia}/${mes}/${ano}`;
+        }
+    }; // Fim do objeto App
+
+    // Inicializa a aplicação quando o DOM estiver pronto
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            App.init();
+        } catch (e) {
+            console.error("Erro fatal na inicialização:", e);
+            document.body.innerHTML = `<div style="color: red; background: white; padding: 20px; font-size: 18px; text-align: center; margin-top: 50px;">Ocorreu um erro fatal ao carregar a aplicação. Tente limpar os dados do navegador.</div>`;
+        }
+    });
+
+    </script>
+</body>
+</html>
