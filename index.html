@@ -3,38 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TQPB - Gestão Financeira</title>
+    <title>TCAPB - Gestão Financeira</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonte Inter do Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bibliotecas para gerar PDF e XLSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* Estilos personalizados */
         body {
-            background-color: #111827; /* Fundo escuro */
-            color: #d1d5db; /* Texto claro */
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 (fundo mais rico e moderno) */
+            color: #f8fafc;
         }
         .btn-primary {
-            background-color: #ef4444; /* Vermelho */
-            transition: background-color 0.3s;
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            border: 1px solid #dc2626;
+            transition: all 0.3s ease;
         }
         .btn-primary:hover {
-            background-color: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            border-color: #f87171;
         }
         .btn-secondary {
-            background-color: #4b5563; /* Cinza */
-            transition: background-color 0.3s;
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            border: 1px solid #64748b;
+            transition: all 0.3s ease;
         }
         .btn-secondary:hover {
-            background-color: #374151;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border-color: #94a3b8;
         }
         .card-gradient {
-            background: linear-gradient(145deg, #1f2937, #374151);
+            background: #1e293b;
+            border: 1px solid #334155;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-        .form-input, .form-select {
-            background-color: #374151;
-            border-color: #4b5563;
-            color: #d1d5db;
+        .form-input, .form-select, .form-textarea {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            color: #f8fafc;
+            transition: all 0.2s ease;
         }
-        .form-input::placeholder {
-            color: #9ca3af;
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #ef4444;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
         }
         /* Animação de fade-in */
         @keyframes fadeIn {
@@ -44,23 +63,17 @@
         .fade-in {
             animation: fadeIn 0.5s ease-out forwards;
         }
-        /* Estilo para o ícone de carregamento */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #ef4444;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
         /* Estilo para o botão de navegação ativo */
         .nav-active {
             color: #ef4444; /* Vermelho */
+        }
+        /* Estilos para abas */
+        .tab-btn {
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn-active {
+            border-bottom-color: #ef4444;
+            color: #ef4444;
         }
     </style>
 </head>
@@ -70,7 +83,15 @@
     <div id="login-screen" class="container mx-auto p-4 md:p-8 flex items-center justify-center min-h-screen">
         <div class="w-full max-w-sm">
             <header class="text-center mb-8">
-                <h1 class="text-4xl md:text-5xl font-bold text-red-500 mb-2">Gestão TQPB</h1>
+                <!-- Foto de Perfil no Login -->
+                <div class="relative inline-block mb-4" title="Foto do sistema">
+                    <img class="admin-photo-img w-40 h-40 md:w-56 md:h-56 rounded-full object-cover border-4 border-red-500 shadow-2xl mx-auto" src="" alt="Perfil" style="display: none;">
+                    <div class="admin-photo-placeholder w-40 h-40 md:w-56 md:h-56 rounded-full bg-gradient-to-tr from-red-600 to-red-900 flex items-center justify-center text-5xl md:text-7xl font-bold text-white shadow-2xl border-4 border-red-500/30 mx-auto">
+                        TC
+                    </div>
+                </div>
+
+                <h1 class="text-4xl md:text-5xl font-bold text-red-500 mb-2">Gestão TCAPB</h1>
                 <p class="text-lg text-gray-400">Acesso ao Sistema</p>
             </header>
             <div class="card-gradient p-8 rounded-lg shadow-xl">
@@ -83,19 +104,33 @@
                         <label for="password" class="block text-sm font-medium text-gray-300 mb-1">Senha</label>
                         <input type="password" id="password" class="form-input w-full rounded-md shadow-sm" required>
                     </div>
-                    <button type="button" class="btn-primary w-full px-4 py-3 rounded-md shadow-lg text-white font-semibold" onclick="App.handleLogin()">Entrar</button>
+                    <button type="submit" class="btn-primary w-full px-4 py-3 rounded-md shadow-lg text-white font-semibold">Entrar</button>
                 </form>
             </div>
         </div>
     </div>
 
     <!-- Conteúdo Principal da Aplicação (inicialmente oculto) -->
-    <div id="app" class="container mx-auto p-4 md:p-8 pb-32" style="display: none;">
+    <div id="app" class="ml-20 p-4 md:p-8" style="display: none;">
         <!-- Cabeçalho -->
         <header class="flex justify-between items-center mb-12">
-            <div>
-                <h1 class="text-4xl md:text-5xl font-bold text-red-500 mb-2">Gestão TQPB</h1>
-                <p class="text-lg text-gray-400">Sistema de Controle Financeiro</p>
+            <div class="flex items-center gap-4 md:gap-6">
+                <!-- Foto de Perfil (Painel Interno) -->
+                <div class="relative group cursor-pointer" onclick="document.getElementById('admin-photo-upload-app').click()" title="Clique para alterar a foto do sistema">
+                    <img class="admin-photo-img w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-red-500 shadow-lg" src="" alt="Perfil" style="display: none;">
+                    <div class="admin-photo-placeholder w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-tr from-red-600 to-red-900 flex items-center justify-center text-xl font-bold text-white shadow-lg border-2 border-red-500/30">
+                        TC
+                    </div>
+                    <div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <span class="text-white text-[10px] md:text-xs font-semibold text-center leading-tight">Mudar</span>
+                    </div>
+                </div>
+                <input type="file" id="admin-photo-upload-app" class="hidden" accept="image/*" onchange="App.uploadAdminPhoto(event)">
+                
+                <div>
+                    <h1 class="text-4xl md:text-5xl font-bold text-red-500 mb-2">Gestão TCAPB</h1>
+                    <p class="text-lg text-gray-400">Sistema de Controle Financeiro</p>
+                </div>
             </div>
             <button class="btn-secondary px-4 py-2 rounded-md shadow-lg" onclick="App.logout()">Sair</button>
         </header>
@@ -106,9 +141,9 @@
         </main>
     </div>
 
-    <!-- Navegação Inferior Fixa (agora fora do #app) -->
-    <nav id="main-nav" class="fixed bottom-0 left-0 right-0 bg-gray-800 shadow-lg" style="display: none;">
-        <div class="container mx-auto flex justify-around p-2">
+    <!-- Navegação Lateral Fixa -->
+    <nav id="main-nav" class="fixed left-0 top-0 h-screen w-20 bg-gray-800 shadow-lg" style="display: none;">
+        <div class="flex flex-col h-full justify-center items-center gap-6">
             <button class="text-gray-300 hover:text-red-400 transition-colors duration-300" onclick="App.render('home')">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                 <span class="text-xs">Início</span>
@@ -117,13 +152,13 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A6.995 6.995 0 0012 12.75a6.995 6.995 0 00-3-5.197M15 21a6 6 0 00-9-5.197" /></svg>
                 <span class="text-xs">Adeptos</span>
             </button>
-            <button class="text-gray-300 hover:text-red-400 transition-colors duration-300" onclick="App.render('financeiroList')">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                <span class="text-xs">Financeiro</span>
+            <button class="text-gray-300 hover:text-red-400 transition-colors duration-300" onclick="App.render('inadimplencia')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                <span class="text-xs">Inadimplentes</span>
             </button>
-            <button class="text-gray-300 hover:text-red-400 transition-colors duration-300" onclick="App.render('capital')">
+            <button class="text-gray-300 hover:text-red-400 transition-colors duration-300" onclick="App.render('caixa')">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
-                <span class="text-xs">Capital</span>
+                <span class="text-xs">Caixa</span>
             </button>
              <button class="text-gray-300 hover:text-red-400 transition-colors duration-300" onclick="App.render('custos')">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -137,19 +172,32 @@
     </nav>
 
     <script>
+        const { jsPDF } = window.jspdf;
+
         const App = {
             config: {
                 username: 'admcontrole',
-                password: 'cova666'
+                password: 'cova666',
+                valorMensalidade: 150.00,
+                initialDataVersion: '2026-05-15-lista-cadastros',
             },
             db: null, // Onde os dados serão mantidos em memória
             state: { // Estado volátil da UI
                 currentPage: 'home',
-                currentYear: new Date().getFullYear(),
-                selectedCustoAno: null,
-                selectedCustoMes: null,
-                selectedContribAno: null,
-                selectedContribMes: null,
+                adeptosFilter: true,
+                currentAdeptoIndex: null,
+                lastViewedAdeptoIndex: null,
+                currentAdeptoTab: 'financeiro',
+                currentFinanceiroYear: new Date().getFullYear(),
+                editingDebitoIndex: null, // Para edição de débitos
+                selectedCaixaAno: new Date().getFullYear(),
+                selectedCaixaMes: new Date().getMonth(),
+                selectedCustoAno: new Date().getFullYear(),
+                selectedCustoMes: new Date().getMonth(),
+                editingCustoIndex: null,
+                selectedContribAno: new Date().getFullYear(),
+                selectedContribMes: new Date().getMonth(),
+                editingContribIndex: null,
             },
             dataLimite: new Date(2024, 0, 1), // 1 de Janeiro de 2024
 
@@ -157,7 +205,13 @@
              * Inicializa a aplicação.
              */
             init: function() {
-                // Verifica se o usuário já está logado na sessão atual
+                document.getElementById('login-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleLogin();
+                });
+
+                this.loadAdminPhoto(); // Carrega a foto para aparecer antes mesmo do login
+
                 if (sessionStorage.getItem('isLoggedIn') === 'true') {
                     this.showApp();
                 } else {
@@ -166,29 +220,40 @@
             },
 
             // 0. AUTENTICAÇÃO
-
-            /**
-             * Mostra a tela de login e esconde o app.
-             */
             showLogin: function() {
                 document.getElementById('login-screen').style.display = 'flex';
                 document.getElementById('app').style.display = 'none';
                 document.getElementById('main-nav').style.display = 'none';
             },
-
-            /**
-             * Mostra o app e esconde a tela de login.
-             */
             showApp: function() {
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
                 document.getElementById('main-nav').style.display = 'block';
                 
-                this.loadDB(); // Carrega os dados
-                this.render(location.hash.slice(1) || 'home'); // Renderiza a página
-                window.addEventListener('hashchange', () => this.render(location.hash.slice(1) || 'home'));
-            },
+                this.loadDB();
+                const hash = location.hash.slice(1);
+                const [page, ...params] = hash.split('/');
+                
+                if (page === 'adepto' && params[0]) {
+                    this.render('adepto', { index: parseInt(params[0], 10), tab: params[1] || 'financeiro' });
+                } else if (page === 'adeptoForm' && params[0]) {
+                    this.render('adeptoForm', { index: parseInt(params[0], 10) });
+                } else {
+                    this.render(page || 'home');
+                }
 
+                window.addEventListener('hashchange', () => {
+                    const hash = location.hash.slice(1);
+                    const [page, ...params] = hash.split('/');
+                    if (page === 'adepto' && params[0]) {
+                        this.render('adepto', { index: parseInt(params[0], 10), tab: params[1] || 'financeiro' });
+                    } else if (page === 'adeptoForm' && params[0]) {
+                        this.render('adeptoForm', { index: parseInt(params[0], 10) });
+                    } else {
+                        this.render(page || 'home');
+                    }
+                });
+            },
             handleLogin: function() {
                 const user = document.getElementById('username').value;
                 const pass = document.getElementById('password').value;
@@ -199,183 +264,380 @@
                     alert('Usuário ou senha inválidos.');
                 }
             },
-
             logout: function() {
                 sessionStorage.removeItem('isLoggedIn');
-                location.hash = ''; // Limpa o hash para evitar re-renderização indesejada
+                location.hash = '';
                 this.showLogin();
             },
 
-            // 1. GERENCIAMENTO DE DADOS (DB)
+            uploadAdminPhoto: function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
 
-            /**
-             * Carrega o banco de dados do LocalStorage. Se não existir, cria um DB padrão.
-             */
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Comprime a imagem para não pesar no navegador
+                        const canvas = document.createElement('canvas');
+                        const MAX_SIZE = 300;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_SIZE) {
+                                height *= MAX_SIZE / width;
+                                width = MAX_SIZE;
+                            }
+                        } else {
+                            if (height > MAX_SIZE) {
+                                width *= MAX_SIZE / height;
+                                height = MAX_SIZE;
+                            }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        localStorage.setItem('tcapb_admin_photo', dataUrl);
+                        App.loadAdminPhoto();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            },
+
+            loadAdminPhoto: function() {
+                const photoData = localStorage.getItem('tcapb_admin_photo');
+                const imgEls = document.querySelectorAll('.admin-photo-img');
+                const placeholderEls = document.querySelectorAll('.admin-photo-placeholder');
+                
+                if (photoData) {
+                    imgEls.forEach(el => { el.src = photoData; el.style.display = 'block'; });
+                    placeholderEls.forEach(el => el.style.display = 'none');
+                } else {
+                    imgEls.forEach(el => el.style.display = 'none');
+                    placeholderEls.forEach(el => el.style.display = 'flex');
+                }
+            },
+
+            uploadAdeptoPhoto: function(event, index) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Comprime a imagem
+                        const canvas = document.createElement('canvas');
+                        const MAX_SIZE = 300;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_SIZE) {
+                                height *= MAX_SIZE / width;
+                                width = MAX_SIZE;
+                            }
+                        } else {
+                            if (height > MAX_SIZE) {
+                                width *= MAX_SIZE / height;
+                                height = MAX_SIZE;
+                            }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        this.db.adeptos[index].foto = canvas.toDataURL('image/jpeg', 0.8);
+                        this.saveDB();
+                        this.render('adepto', { index: index, tab: this.state.currentAdeptoTab });
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            },
+
+            // 1. GERENCIAMENTO DE DADOS (DB)
             loadDB: function() {
                 const dbJson = localStorage.getItem('tqpb_db');
                 if (dbJson) {
                     this.db = JSON.parse(dbJson);
                 } else {
-                    // Se não houver DB, cria uma estrutura inicial
-                    this.db = {
-                        adeptos: [],
-                        custos: [],
-                        contribuicoes: []
-                    };
+                    this.db = { adeptos: [], custos: [], contribuicoes: [] };
+                }
+                if (!this.db.custos) this.db.custos = [];
+                if (!this.db.contribuicoes) this.db.contribuicoes = [];
+
+                if (this.db.initialDataVersion !== this.config.initialDataVersion) {
+                    const adeptosAtuais = Array.isArray(this.db.adeptos) ? this.db.adeptos : [];
+                    const normalizeNome = (nome) => (nome || '').trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
+                    const adeptosPorNome = new Map(adeptosAtuais.map((adepto) => [normalizeNome(adepto.nome), adepto]));
+
+                    this.db.adeptos = this.getInitialData().map((novoAdepto) => {
+                        const adeptoAtual = adeptosPorNome.get(normalizeNome(novoAdepto.nome));
+
+                        if (!adeptoAtual) return novoAdepto;
+
+                        return {
+                            ...novoAdepto,
+                            id: adeptoAtual.id || novoAdepto.id,
+                            foto: adeptoAtual.foto,
+                            financeiro: adeptoAtual.financeiro || novoAdepto.financeiro,
+                        };
+                    });
+                    this.db.initialDataVersion = this.config.initialDataVersion;
                     this.saveDB();
                 }
-            },
 
-            /**
-             * Salva o estado atual do banco de dados no LocalStorage.
-             */
+                if (!this.db.adeptos) this.db.adeptos = [];
+            },
             saveDB: function() {
                 localStorage.setItem('tqpb_db', JSON.stringify(this.db));
             },
+            getInitialData: function() {
+                const csv = "\"Nome\",\"Data Entrada\",\"Data Nasc\",\"Estado Civil\",\"Endereco\",\"Complemento\",\"Email\",\"Telefone\",\"Rede Social\",\"Profissao\",\"Mestre Exu\",\"Mestra Pombagira\",\"Como Soube\",\"Obrigacoes\",\"Batismo\",\"Data Batismo\",\"Alergias\",\"Medicacao\"\n\"Alef Oliveira sousa\",\"2024-05-14\",\"1994-05-22\",\"Casado\",\"Av claricinda alves de rezende 1050 Apt201 BL01\",\"\",\"Alefoliveiraeng@yahoo.com.br\",\"+5534998406461\",\"Instagram @alefoliveira.34\",\"Empresario\",\"Tranca rua da encruzilhada \",\"Maria padilha\",\"Através de seu Rei\",\"Nao realizei\",\"Batizado(a)\",\"2025-11-02\",\"Nao\",\"Medicações (carvedilol,rosuvastatina,AAs,Enalapril)\"\n\"Bruna Silva Vieira\",\"2025-04-26\",\"1991-12-06\",\"União estável \",\"Campos Sales, 622, Abadia, Uberaba, Minas Gerais, Brasil.\",\"\",\"bubu.uai@hotmail.com\",\"34 998286160\",\"Instagram @bubuuvieira\",\"Autônomo - Personal Training \",\"Gira Mundo\",\"Maria Padilha \",\"Seu Rei das 7 Encruzilhadas me informou no dia da festa do Seu Exu do Lodo de forma bastante interessante, ele disse: “Você sabe quem é seu Exu? Vou te falar, mas o que eu ganho em troca?”(Risada boa do Seu Rei) Enquanto eu pensava no que eu poderia dar em troca ele me disse que era Seu Gira Mundo. \nQuanto a minha Senhora, Dona Maria Padilha, foi meio a uma festa aonde também Seu Rei me informou sobre ela. \",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Não \",\"Não \"\n\"Bruno Libanore\",\"2024-01-21\",\"1998-05-04\",\"Solteiro\",\"Felipe Dos Santos n180 ap502, Nossa Senhora da Abadia - Uberaba-Mg Brasil\",\"\",\"bruno.libanore@outlook.com\",\"(14) 997103173\",\"Instagram @brunolibanore\",\"Fisioterapeuta \",\"Exu 7 Catacumbas\",\"Pombagira Rosa Caveira \",\"Sempre foram eles desde a umbanda, confirmação no oráculo. \",\"Batismo, mini vultos \",\"Batizado(a)\",\"2024-07-27\",\"Não tenho \",\"Não \"\n\"Cristiellen Elisa Silva Batista \",\"2025-06-03\",\"1998-10-17\",\"Divorciada \",\"Rua quirino Luiz da costa 147 Estados Unidos \",\"\",\"Criiselisa20@gmail.com \",\"34984244893\",\"Instagram Criiselisa\",\"estudante \",\"Exu sr Lúcifer \",\"Pomba gira Maria Quitéria \",\"Confirmação dos mestres da casa \",\"Batismo na umbanda em 2016 \nIniciação na bruxaria em 2020 \",\"Não Batizado(a)\",\"\",\"Não tenho \",\"Não \"\n\"Daniela Ferreira Campelo da Silva \",\"2024-04-22\",\"1980-03-26\",\"solteira\",\"Rua Cairo Batista Beirigo  315 ,  Chácaras Vila Real , MG Uberaba,Brasil \",\"\",\"Df4490288@gmail.com\",\"(34) 99104-1480\",\"Instagram danielaferreira53\",\"auxiliar de limpeza \",\"Shr Sete capas preta \",\"Dona Maria da sete facadas \",\"Pelo shr Pantera negra ,Exu do Mestre Danilo Copine\",\"não realizei \",\"Batizado(a)\",\"2025-11-01\",\"Não tenho \",\"Não \"\n\"Daniela Medalha Ferreira dos Santos \",\"2024-06-11\",\"1983-11-09\",\"Divorciada\",\"Rua José  Vitor de Andrade N 84 Serra Dourada\",\"\",\"daniellamedalha@gmail.com\",\"34996719561\",\"Instagram @dradaniellamedalha\",\"Fisioterapeuta Acupunturista \",\"Senhor Exu do Lodo \",\"Senhora Dona Cacurucaia \",\"Pelos sacerdotes da casa .\",\"Não realizei.’\",\"Não Batizado(a)\",\"\",\"Não \",\"Sertralina; Levoide \"\n\"Deivid Hudson de Oliveira \",\"2023-08-14\",\"1988-07-16\",\"Casado \",\"Avenida Prudente de Morais \",\"\",\"Deivid_Hudson@hotmail.com\",\"5534992553620\",\"Instagram @eudeividoliver\",\"Cabeleireiro \",\"Sr. Sete da Lira \",\"Dona Maria Padilha do Cabaré \",\"Pelos mestres da casa povo do buraco \",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Não tenho \",\"Usava canabis \"\n\"Dienne Silva \",\"2023-09-23\",\"1991-05-06\",\"Solteira \",\"Rua ana barbosa Ferreira 270, ilha do marajo, Uberaba-MG \",\"\",\"Dihsilva2k20@gmail.com\",\"+55 34992359517\",\"Instagram @filha.de_rosa\",\"Cabelereira \",\"Senhor Tata caveira\",\"Dona Rosa caveira \",\"Oráculo \",\"Não realizei \",\"Batizado(a)\",\"2023-09-23\",\"Não tenho \",\"Não \"\n\"Eduardo Oliveira \",\"2025-09-21\",\"1985-11-03\",\"Casado \",\"Rua cario Batista Beirigo 315\",\"\",\"vainereo@icloud.com\",\"34991233441\",\"Instagram eduardo_bioma\",\"Cabeleireiro \",\"Senhor Rei das 7 Encruzilhadas \",\"Senhora Rainha das 7 Encruzilhadas \",\"Nasceram comigo \",\"Batismo, assentamentos , Quizumbeiras, visão e audição , sacerdócio \",\"Batizado(a)\",\"2023-04-23\",\"Nao\",\"Não \"\n\"Emerson Duarte dos Santos\",\"2023-09-01\",\"1997-06-27\",\"Casado\",\"Rua Alice 1130, apto 201, Laranjeiras, Rio de Janeiro, Brasil. \",\"\",\"emerson.sanduar10@gmail.com\",\"34996754533\",\"Instagram esanduar\",\"Músico\",\"Capa Preta\",\"Rosa dos Ventos\",\"Oráculo Casa de Pantera e Sr. Rei das 7 Encruzilhadas\",\"Não realizei\",\"Batizado(a)\",\"2024-07-27\",\"Não \",\"Não\"\n\"Gabriel Claro De Almeida Perão \",\"2025-03-29\",\"1987-03-24\",\"Casado \",\"Rua José Vitor de Andrade \",\"\",\"gabriel.claro@hotmail.com\",\"34992933700\",\"Instagram Claro5151\",\"Motorista\",\"Rei da calunga \",\"Não sei ainda \",\"Mestre Eduardo quem falou \",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Não \",\"Não \"\n\"Juan Henrique Pires Silva\",\"2024-09-05\",\"2007-03-21\",\"Solteiro\",\"R. Reinaldo Alves da Rocha, 850- Portal Do Vale, BL1/AP608 - Uberlândia (MG) - Brasil\",\"\",\"juanhenpsilva@gmail.com\",\"+55 (34) 9 8445-2640\",\"TikTok @juanhpires\",\"autônomo \",\"Zé Pilintra\",\"Maria Farrapo\",\"Confirmação dos mestres da casa (Sr. Rei e Dona Rainha)\",\"Não realizei \",\"Batizado(a)\",\"2025-11-02\",\"Não tenho\",\"Não \"\n\"Kaique Giordani Sousa castro oliveira \",\"2024-07-04\",\"2003-12-30\",\"Solteiro \",\"Rua das acácias 503 Lourdes \",\"\",\"kaique65236@gmail.com\",\"5534996867015 5534984428848\",\"Instagram Kaiqueexu666\",\"Motoboy\",\"Marabô cigano\",\"Cigana 7 rosas\",\"Oráculo de Exu \",\"Batismo quimbanda \",\"Batizado(a)\",\"2025-11-02\",\"Bronquite \",\"Em festa.\"\n\"Kevin Douglas Costa de Sousa \",\"2024-09-05\",\"2006-11-17\",\"Solteiro \",\"R. Reinaldo Alves da Rocha, 850 - Portal do Vale - APT 608 - Uberlândia - MG, 38436-086 - Brasil\",\"\",\"csousakevin.24@icloud.com\",\"+55 (11) 9 3293-5319\",\"Instagram costa_kevszx\",\"Assistente do Setor de Apoio ao Empreiteiro BILD\",\"Exu Faísca \",\"Maria Padilha do Inferno \",\"Sr. Rei das 7 Encruzilhadas confirmou o nome dos meus mestres em um trabalho.\",\"Não realizei\",\"Batizado(a)\",\"2025-11-02\",\"Não tenho.\",\"Não faço uso de nenhuma medicação ou drogas.\"\n\"Laysa Mirelle Miguel Melo\",\"2025-04-26\",\"2003-05-28\",\"União Estável \",\"Campos Sales 622 - Abadia \",\"\",\"artselay@gmail.com\",\"55 34 992182455\",\"Instagram Laysamirelli_\",\"Had de Experiência\",\"SR CAPA PRETA\",\"CIGANA ESMERALDA \",\"Mestres da Casa \",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Não tenho \",\"Não \"\n\"Leandra Ferreira \",\"2025-04-24\",\"2007-03-15\",\"Solteira \",\"Rua Cairo Batista beirigo 315\",\"\",\"Lf957469@gmail.com \",\"55+ 11 98361-3086\",\"Instagram @_leandrsz\",\"Cabeleireira \",\"Tranca rua de embaré \",\"Pombagira Menina da praia \",\"Os mestres da casa me falaram \",\"Não \",\"Batizado(a)\",\"2025-11-02\",\"Não \",\"Não \"\n\"Luiz Gustavo Santos Furtado \",\"2025-04-10\",\"2012-02-27\",\"Solteiro \",\"Rua José Victor de Andrade 84 casa Brasil \",\"\",\"Luizgustavosantosfurtado2012@gmail.com\",\"5534998602702\",\"TikTok luizgustavosantosfurtad\",\"Estudante\",\"Tata caveira \",\"Tata mulambo \",\"Pombo gira se apresentou. Exu dona tata mulambo falo.\",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Nao tenho \",\"Não \"\n\"Marcelo Luiz Ferraz Nauheimer de Arruda \",\"2023-11-19\",\"1999-06-24\",\"Solteiro\",\"Rua Massaranduba, 238. \nBairro Vila Monte Alegre\nCEP:04304120\nSão Paulo/SP\nBrasil \",\"\",\"Nauheimerpro@gmail.com\",\"+5511939361000\",\"Instagram @marcelonauheimer\",\"Personal \",\"Exu Kalunga\",\"Maria Mulambo da Figueira \",\"Oráculo Mestre Danilo Coppini \",\"Não realizei.\",\"Batizado(a)\",\"2024-07-27\",\"Ceratocone \",\"Não\"\n\"Maria Eduarda Rodrigues Barcelos \",\"2023-09-01\",\"1999-11-01\",\"Casada \",\"Rua Alice 1130, apto 201, Laranjeiras, Rio de Janeiro, Brasil. \",\"\",\"rodriguesmariaeduarda18@gmail.com\",\"34998973269\",\"Instagram madudbarcelos\",\"Atriz \",\"Destranca Ruas \",\"Rosa Negra \",\"Sr Rei e Oráculo do mestre Danilo \",\"Não realizei \",\"Batizado(a)\",\"2024-07-27\",\"Não tenho \",\"Puran e anticoncepcional \"\n\"Patrícia Azevedo \",\"2024-12-04\",\"1972-09-27\",\"Casada\",\"Rua de gonde 93 Avanca Portugal \",\"\",\"Myjuedu@uahoo.com.br\",\"351 926682798\",\"Instagram Patricia_aazevedo\",\"Aposentada \",\"Tranca Rua das Almas\",\"Maria Padilha\",\"Pelo Mestre Danilo\",\"Não \",\"Não Batizado(a)\",\"\",\"Tiróide De Hashimoto, coluna lombar e cervical \",\"Não \"\n\"Simone Azevedo\",\"2023-11-25\",\"1974-05-08\",\"Divorciada \",\"Rua Arcabuz , 193 , jardim Adutora \",\"\",\"siazee@hotmail.com\",\"11986058765\",\"Instagram simonenenauan\",\"Vendedora \",\"Tranca Rua Estradeiro \",\"Cigana Esmeralda \",\"Sr. Pantera disse pra mim \",\"não realizei \",\"Batizado(a)\",\"2024-07-27\",\"não \",\"não \"\n\"Thaís Cristina Nascimento de Deus \",\"2023-08-14\",\"1991-04-02\",\"Casada \",\"Prudente de Morais 135,sala 7\",\"\",\"Thaisnascimentoo1991@gmail.com \",\"34992505046\",\"Instagram @thais.nascimentoo\",\"Carreira \",\"7 Capa Preta \",\"Sete Saias \",\"Através do Senhor Rei das Sere Encruzilhadas \",\" Não realizei \",\"Batizado(a)\",\"2024-07-27\",\"Não \",\"Maconha \"\n\"Yan Ferreira Campelo da Silva \",\"2024-08-03\",\"2009-10-28\",\"solteiro \",\"Rua Cairo Batista Beirigo 315\",\"\",\"Campelo04350@icloud.com\",\"34991230917\",\"Instagram Eo_yan.00\",\"Assistente de cabeleireiro\",\"Sr Zé pelintra \",\"Dona Maria navalha \",\"Através dos donos da casa \",\"Não\",\"Batizado(a)\",\"2025-11-02\",\"Não tenho\",\"Não \"\n\"Carolina de Araújo Andrade\",\"2026-01-10\",\"1997-11-09\",\"Solteira\",\"Rua dos Ferreiras, 475\",\"Rua 4, 462\",\"carolina.araujo.andrade@gmail.com\",\"34991266275\",\"Instagram carolaraujoac\",\"Advogada\",\"Senhor Belzebu\",\"Senhora Rosa Negra\",\"Senhor Rei das Sete Encruzilhadas\",\"nenhuma\n\",\"Não Batizado(a)\",\"\",\"Autismo\",\"anticoncepcional, trazodona (dose mínima para dormir)\"\n\"Gabriel souto Borges\",\"2026-02-18\",\"2002-01-17\",\"solteiro\",\"rua Virgílio Carrijo 355\",\"\",\"Gabriel.s.b1701@gmail.com\",\"34991259681\",\"Instagram biel_soutoo\",\"Gestor \",\"7 porteira \",\"\",\"Outra tradição(umbanda)\",\"Nenhuma \n\",\"Não Batizado(a)\",\"\",\"Não\",\"Não\"\n\"Bruno Alexsandro Gonçalves Ferreira\",\"2026-02-19\",\"2001-03-12\",\"solteiro\",\"rua Marcelo Morais de Oliveira 175\",\"casa\",\"brunoalexsandroferreira@gmail.com\",\"34998558429\",\"Instagram @bruno_alex_ferreira\",\"cirurgião dentista\",\"Ainda não sei \",\"Ainda não sei \",\"\",\"\",\"Não Batizado(a)\",\"\",\"não \n\",\"não \n\"\n\"Allan do nascimento\",\"2023-09-21\",\"1993-02-07\",\"Solteiro\",\"Av. Luís Carlos maluf, 102, Residencial 2000, Uberaba MG, Brasil\",\"\",\"allan.nascimento836@gmail.com\",\"034-99155-6958\",\"Instagram allan_makaya\",\"Vigia\",\"Exu Treme terra\",\"Pombogira das Matas\",\"Através de Oraculo\n\",\"Nao realizei \n\",\"Batizado(a)\",\"2023-11-25\",\"Não tenho \n\",\"Não utilizo\"\n\"João Tomé Da Costa\",\"2023-08-07\",\"1998-06-12\",\"Solteiro\",\"Avenida Santos Dumont 3110\",\"\",\"joaotome9897@outlook.com\",\"3499104-7551\",\"Instagram joaotomehair\",\"Cabeleireiro\",\"João caveira\",\"Maria caveira\",\"Oráculo \n\",\"Não realizei \n\",\"Batizado(a)\",\"2024-07-27\",\"Não \n\",\"Não\"\n\"Lilian de Sousa Bernardes\",\"2023-11-11\",\"1985-11-03\",\"Solteira\",\"Rua Fernando Sabino de Freitas 335\",\"\",\"lilika.bernardes1985@gmail.com\",\"55 34 99144-7071\",\"Facebook Lilian Bernardes\",\"Autônoma\",\"Tiriri Cigano\",\"Rosa Vermelha\",\"Oráculo \n\",\"Não realizei \n\",\"Batizado(a)\",\"2024-02-24\",\"Não tenho \n\",\"Não\"\n\"João Marcos Oliveira da Silva\",\"2026-01-10\",\"1997-06-14\",\"Solteiro\",\" Avenida dos Ferreiras, 475, Uberlândia.\",\"Casa 426\",\"ojoaomarcos14@gmail.com\",\"34 99236-1484\",\"Instagram jm_marcos14\",\"Advogado\",\"7 Capas Pretas\",\"Maria Quitéria \",\"ditos pelo mestre Rei das 7 Encruzilhadas \n\",\"Nenhuma\",\"Não Batizado(a)\",\"\",\"autismo/altas habilidades (superdotação). Alergia à penicilina \n\",\"Não\"\n\"Maria José Domingos da Silva Melo\",\"2023-11-11\",\"1969-12-12\",\"Casada\",\"rua Ana Barbosa Ferreira número 270 ilha de marajo, Uberaba - Minas Gerais\",\"\",\"Mariadomingos37960@gmail.com 34\",\"99808-8390\",\"Instagram m4ry_sillv4\",\"\",\"Exu Zé Pilintra\",\"dona Maria Farrapo\",\"Oráculo\",\"Nenhuma\",\"Batizado(a)\",\"2024-02-24\",\"Rinite\",\"Remédio para pressão\"\n\"Jorge Luiz Siqueira Júnior\",\"2026-04-21\",\"1995-09-19\",\"Solteiro\",\"Av. dos Inconfidentes, n° 330\",\"Apartamento 202\",\"siqueirajr1995@gmail.com\",\"34 996338369\",\"Instagram @siqueirajr1995\",\"Servidor Público - Mestre de obras\",\"Tranca Rua das Almas\",\"Rosa Caveira\",\"Através de oráculo com o mestre Eduardo\",\"Nenhuma\",\"Não Batizado(a)\",\"\",\"intolerância a lactose, rinite. Alergia a Benzetacil\",\"Não\"";
 
-            // 2. RENDERIZAÇÃO E NAVEGAÇÃO
+                const parseCSV = (text) => {
+                    const rows = [];
+                    let row = [];
+                    let field = '';
+                    let inQuotes = false;
 
-            /**
-             * Renderiza a página solicitada no elemento #main-content.
-             */
-            render: function(page, data = {}) {
-                this.state.currentPage = page;
-                const mainContent = document.getElementById('main-content');
-                location.hash = page;
+                    for (let i = 0; i < text.length; i++) {
+                        const char = text[i];
+                        const next = text[i + 1];
 
-                let content = '';
-                    switch (page) {
-                        case 'home':
-                            content = this.renderHome();
-                            break;
-                        case 'adeptosList':
-                            content = this.renderAdeptosList();
-                            break;
-                        case 'addAdepto':
-                            content = this.renderAddAdeptoForm();
-                            break;
-                        case 'editAdepto':
-                            content = this.renderAddAdeptoForm(data); // Reutiliza o formulário para edição
-                            break;
-                        case 'financeiroList':
-                            content = this.renderFinanceiroList();
-                            break;
-                        case 'financeiroAdepto':
-                            content = this.renderFinanceiroAdepto(data);
-                            break;
-                        case 'capital':
-                            content = this.renderCapital();
-                            break;
-                        case 'custos':
-                            content = this.renderCustos(data);
-                            break;
-                        case 'contribuicoes':
-                            content = this.renderContribuicoes(data);
-                            break;
-                        case 'inadimplencia':
-                            content = this.renderInadimplencia();
-                            break;
-                        default:
-                            content = this.renderHome();
+                        if (inQuotes) {
+                            if (char === '"' && next === '"') {
+                                field += '"';
+                                i++;
+                            } else if (char === '"') {
+                                inQuotes = false;
+                            } else {
+                                field += char;
+                            }
+                        } else if (char === '"') {
+                            inQuotes = true;
+                        } else if (char === ',') {
+                            row.push(field);
+                            field = '';
+                        } else if (char === '\n') {
+                            row.push(field);
+                            rows.push(row);
+                            row = [];
+                            field = '';
+                        } else if (char !== '\r') {
+                            field += char;
+                        }
                     }
-                    mainContent.innerHTML = content;
-                    this.updateNav(); // Atualiza o estado ativo da navegação
+
+                    row.push(field);
+                    rows.push(row);
+                    return rows.filter((currentRow) => currentRow.some((value) => value !== ''));
+                };
+
+                const splitRedeSocial = (value) => {
+                    const trimmed = value || '';
+                    const match = trimmed.match(/^(Instagram|Facebook|TikTok)\s*(.*)$/i);
+
+                    if (!match) {
+                        return { redeSocialTipo: trimmed ? 'Outra' : 'Instagram', redeSocialUser: trimmed };
+                    }
+
+                    const tipo = match[1].toLowerCase() === 'tiktok'
+                        ? 'TikTok'
+                        : match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+
+                    return { redeSocialTipo: tipo, redeSocialUser: match[2] || '' };
+                };
+
+                const [headers, ...rows] = parseCSV(csv);
+                const records = rows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] || ''])));
+                const data = records.map((record) => ({
+                    nome: record.Nome,
+                    dataNascimento: record['Data Nasc'],
+                    dataEntradaTQPB: record['Data Entrada'],
+                    estadoCivil: record['Estado Civil'],
+                    endereco: record.Endereco,
+                    complemento: record.Complemento,
+                    email: record.Email,
+                    telefone: record.Telefone,
+                    atividadeProfissional: record.Profissao,
+                    mestreExu: record['Mestre Exu'],
+                    mestraPombagira: record['Mestra Pombagira'],
+                    comoSoube: record['Como Soube'],
+                    obrigacoesRealizadas: record.Obrigacoes,
+                    statusBatismo: record.Batismo,
+                    dataBatismo: record['Data Batismo'],
+                    alergiaDoenca: record.Alergias,
+                    medicacaoDrogas: record.Medicacao,
+                    ...splitRedeSocial(record['Rede Social']),
+                }));
+                
+                return data.map((d, i) => ({
+                    ...d,
+                    id: Date.now() + i,
+                    ativo: true,
+                    financeiro: { mensalidades: {}, debitos: [] }
+                }));
             },
 
-            /**
-             * Atualiza a classe ativa dos botões de navegação.
-             */
+            // 2. RENDERIZAÇÃO E NAVEGAÇÃO
+            render: function(page, data = {}) {
+                const oldPage = this.state.currentPage;
+                this.destroyChart(); // Garante que o gráfico seja destruído ao mudar de página
+                this.state.currentPage = page;
+                const mainContent = document.getElementById('main-content');
+                
+                let content = '';
+                switch (page) {
+                    case 'home':
+                        location.hash = 'home';
+                        content = this.renderHome();
+                        break;
+                    case 'adeptosList':
+                        location.hash = 'adeptosList';
+                        content = this.renderAdeptosList();
+                        break;
+                    case 'adeptoForm':
+                        location.hash = 'adeptoForm' + (data.index !== undefined ? `/${data.index}` : '');
+                        if (data.index !== undefined) this.state.lastViewedAdeptoIndex = data.index;
+                        content = this.renderAdeptoForm(data.index);
+                        break;
+                    case 'adepto':
+                        this.state.currentAdeptoIndex = data.index;
+                        this.state.lastViewedAdeptoIndex = data.index;
+                        this.state.currentAdeptoTab = data.tab || 'financeiro';
+                        location.hash = `adepto/${data.index}/${this.state.currentAdeptoTab}`;
+                        content = this.renderAdeptoDetalhes(data.index, data);
+                        break;
+                    case 'caixa':
+                        location.hash = 'caixa';
+                        content = this.renderCaixa();
+                        break;
+                    case 'custos':
+                        location.hash = 'custos';
+                        this.state.editingCustoIndex = data.editingIndex !== undefined ? data.editingIndex : null;
+                        content = this.renderCustos();
+                        break;
+                    case 'contribuicoes':
+                        location.hash = 'contribuicoes';
+                        this.state.editingContribIndex = data.editingIndex !== undefined ? data.editingIndex : null;
+                        content = this.renderContribuicoes();
+                        break;
+                    case 'inadimplencia':
+                        location.hash = 'inadimplencia';
+                        content = this.renderInadimplencia();
+                        break;
+                    default:
+                        this.render('home'); // Redireciona para home se a página for inválida
+                        return;
+                }
+                mainContent.innerHTML = content;
+                this.updateNav();
+
+                // Retorna o scroll para o último adepto visualizado
+                if (page === 'adeptosList' && this.state.lastViewedAdeptoIndex !== null) {
+                    setTimeout(() => {
+                        const el = document.getElementById(`adepto-item-${this.state.lastViewedAdeptoIndex}`);
+                        if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
+                        this.state.lastViewedAdeptoIndex = null; // Limpa o estado depois de rolar
+                    }, 50);
+                } else if (oldPage !== page) {
+                    // Rola para o topo sempre que mudar de tela
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                }
+            },
             updateNav: function() {
                 const navButtons = document.querySelectorAll('#main-nav button');
                 navButtons.forEach(btn => {
-                    // Extrai a página do atributo onclick
                     const page = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
-                    
-                    // Limpa a classe de todos
                     btn.classList.remove('nav-active');
-                    
-                    // Adiciona a classe se for a página atual
-                    if (page === this.state.currentPage) {
+                    if (page === this.state.currentPage || (['adepto', 'adeptoForm'].includes(this.state.currentPage) && page === 'adeptosList')) {
                         btn.classList.add('nav-active');
                     }
                 });
             },
 
-
-
-
-            /**
-             * Renderiza a página inicial (Home).
-             */
+            // PÁGINA INICIAL
             renderHome: function() {
                 return `
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <!-- Adeptos -->
-                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 cursor-pointer">
+                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" onclick="App.render('adeptosList')">
                             <h2 class="text-2xl font-semibold mb-4 text-red-400">Adeptos</h2>
-                            <p class="text-gray-300 mb-6">Gestão completa do cadastro de adeptos.</p>
-                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('adeptosList')">Gerir Adeptos</button>
+                            <p class="text-gray-300 mb-6">Cadastro e gestão financeira dos adeptos.</p>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold">Gerir Adeptos</button>
                         </div>
-                        <!-- Financeiro -->
-                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.1s;">
-                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Financeiro</h2>
-                            <p class="text-gray-300 mb-6">Controle de mensalidades e débitos individuais.</p>
-                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('financeiroList')">Aceder ao Financeiro</button>
-                        </div>
-                        <!-- Custos -->
-                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.2s;">
+                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.2s;" onclick="App.render('custos')">
                             <h2 class="text-2xl font-semibold mb-4 text-red-400">Custos do Templo</h2>
                             <p class="text-gray-300 mb-6">Registo de despesas e custos operacionais.</p>
-                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('custos')">Ver Custos</button>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold">Ver Custos</button>
                         </div>
-                        <!-- Inadimplência -->
-                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.3s;">
+                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.3s;" onclick="App.render('contribuicoes')">
+                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Contribuições</h2>
+                            <p class="text-gray-300 mb-6">Registo de doações e outras entradas.</p>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold">Ver Contribuições</button>
+                        </div>
+                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.4s;" onclick="App.render('inadimplencia')">
                             <h2 class="text-2xl font-semibold mb-4 text-red-400">Inadimplência</h2>
                             <p class="text-gray-300 mb-6">Relatório de adeptos com pendências financeiras.</p>
-                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('inadimplencia')">Ver Relatório</button>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold">Ver Relatório</button>
                         </div>
-                        <!-- Capital -->
-                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.4s;">
-                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Capital</h2>
-                            <p class="text-gray-300 mb-6">Balanço financeiro geral do templo.</p>
-                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('capital')">Ver Balanço</button>
+                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.5s;" onclick="App.render('caixa')">
+                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Caixa</h2>
+                            <p class="text-gray-300 mb-6">Balanço mensal e anual de entradas e saídas.</p>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold">Ver Caixa</button>
                         </div>
-                        <!-- Contribuições -->
-                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.5s;">
-                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Contribuições</h2>
-                            <p class="text-gray-300 mb-6">Registo de doações e contribuições voluntárias.</p>
-                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold" onclick="App.render('contribuicoes')">Ver Contribuições</button>
+                        <div class="card-gradient rounded-lg shadow-xl p-6 flex flex-col justify-between hover:shadow-red-500/20 transition-all duration-300 fade-in" style="animation-delay: 0.6s;">
+                            <h2 class="text-2xl font-semibold mb-4 text-red-400">Dados do Sistema</h2>
+                            <p class="text-gray-300 mb-6">Gerencie backups ou restaure os dados iniciais.</p>
+                            <button class="btn-secondary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold mb-2" onclick="App.exportBackup()">Backup (XLSX)</button>
+                            <button class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white font-semibold bg-red-800 hover:bg-red-900" onclick="App.resetData()">Resetar / Limpar Cache</button>
                         </div>
                     </div>
                 `;
             },
 
             // 3. SEÇÃO: ADEPTOS
-
-            /**
-             * Renderiza a lista de adeptos.
-             */
             renderAdeptosList: function() {
+                const filterAtivo = this.state.adeptosFilter !== false;
                 let content = `
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-3xl font-semibold text-red-400">Lista de Adeptos</h2>
-                        <button class="btn-primary px-4 py-2 rounded-md shadow-lg" onclick="App.render('addAdepto')">Adicionar Adepto</button>
+                        <h2 class="text-3xl font-semibold text-red-400">Adeptos</h2>
+                        <button class="btn-primary px-4 py-2 rounded-md shadow-lg" onclick="App.render('adeptoForm', {})">Cadastrar Adepto</button>
                     </div>
+
+                    <div class="flex border-b border-gray-700 mb-6">
+                        <button class="tab-btn py-2 px-4 text-lg font-semibold ${filterAtivo ? 'tab-btn-active' : ''}" onclick="App.setAdeptosFilter(true)">Ativos</button>
+                        <button class="tab-btn py-2 px-4 text-lg font-semibold ${!filterAtivo ? 'tab-btn-active' : ''}" onclick="App.setAdeptosFilter(false)">Inativos</button>
+                    </div>
+
                     <div class="card-gradient p-6 rounded-lg shadow-xl">
                 `;
 
-                if (this.db.adeptos.length === 0) {
+                const adeptosOrdenados = [...this.db.adeptos]
+                    .filter(a => (filterAtivo ? a.ativo !== false : a.ativo === false))
+                    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+                if (adeptosOrdenados.length === 0) {
                     content += '<p class="text-gray-400">Nenhum adepto cadastrado.</p>';
                 } else {
-                    content += '<ul class="space-y-4">';
-                    this.db.adeptos.forEach((adepto, index) => {
+                    content += '<ul class="space-y-2">';
+                    adeptosOrdenados.forEach(adepto => {
+                        const index = this.db.adeptos.findIndex(a => a.id === adepto.id);
+                        const resumo = this.calcularResumoFinanceiro(index);
+                        const saldoClass = resumo.saldo < 0 ? 'text-red-400' : 'text-green-400';
                         content += `
-                            <li class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-gray-700 rounded-md">
-                                <span class="font-semibold text-gray-200">${adepto.nome}</span>
-                                <div class="flex gap-4 mt-2 md:mt-0">
-                                    <button class="text-blue-400 hover:text-blue-300" onclick="App.render('editAdepto', ${index})">Editar</button>
-                                    <button class="text-red-500 hover:text-red-400" onclick="App.deleteAdepto(${index})">Apagar</button>
-                                </div>
+                            <li>
+                                <button id="adepto-item-${index}" class="w-full flex justify-between items-center p-4 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200" onclick="App.render('adepto', { index: ${index} })">
+                                    <span class="font-semibold text-gray-200">${adepto.nome}</span>
+                                    <span class="font-bold ${saldoClass}">${this.formatCurrency(resumo.saldo)}</span>
+                                </button>
                             </li>
                         `;
                     });
@@ -386,71 +648,309 @@
                 return content;
             },
 
-            /**
-             * Renderiza o formulário para adicionar ou editar um adepto.
-             */
-            renderAddAdeptoForm: function(adeptoIndex = null) {
-                const isEditing = adeptoIndex !== null;
-                const adepto = isEditing ? this.db.adeptos[adeptoIndex] : {};
-                const title = isEditing ? 'Editar Adepto' : 'Adicionar Novo Adepto';
-                const buttonText = isEditing ? 'Atualizar Adepto' : 'Salvar Adepto';
-                const action = `App.saveAdepto(${adeptoIndex})`;
+            setAdeptosFilter: function(isAtivo) {
+                this.state.adeptosFilter = isAtivo;
+                this.render('adeptosList');
+            },
+
+            renderAdeptoDetalhes: function(index, data = {}) {
+                const adepto = this.db.adeptos[index];
+                if (!adepto) return this.renderAdeptosList();
+
+                this.state.editingDebitoIndex = data.editingDebitoIndex !== undefined ? data.editingDebitoIndex : null;
+                const isFinanceiroTab = this.state.currentAdeptoTab === 'financeiro';
+                const isCadastroTab = this.state.currentAdeptoTab === 'cadastro';
+
+                // Pega as iniciais do nome para o Avatar (ex: João Silva -> JS)
+                const iniciais = adepto.nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+
+                let content = `
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="relative group cursor-pointer" onclick="document.getElementById('adepto-photo-upload-${index}').click()" title="Clique para alterar a foto do adepto">
+                                ${adepto.foto 
+                                    ? `<img src="${adepto.foto}" alt="Perfil" class="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-red-500 shadow-lg">` 
+                                    : `<div class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-tr from-red-500 to-red-800 flex items-center justify-center text-xl font-bold text-white shadow-lg border-2 border-red-400/30">${iniciais}</div>`
+                                }
+                                <div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <span class="text-white text-[10px] md:text-xs font-semibold text-center leading-tight">Mudar</span>
+                                </div>
+                            </div>
+                            <input type="file" id="adepto-photo-upload-${index}" class="hidden" accept="image/*" onchange="App.uploadAdeptoPhoto(event, ${index})">
+                            
+                            <div>
+                                <h2 class="text-3xl font-semibold text-white">${adepto.nome}</h2>
+                                <p class="text-gray-400">Entrada: ${this.formatDate(adepto.dataEntradaTQPB)}</p>
+                            </div>
+                        </div>
+                        <button class="btn-secondary px-4 py-2 rounded-md" onclick="App.render('adeptosList')">Voltar à Lista</button>
+                    </div>
+
+                    <!-- Abas de Navegação -->
+                    <div class="flex border-b border-gray-700 mb-6">
+                        <button class="tab-btn py-2 px-4 text-lg font-semibold ${isFinanceiroTab ? 'tab-btn-active' : ''}" onclick="App.render('adepto', { index: ${index}, tab: 'financeiro' })">
+                            Financeiro
+                        </button>
+                        <button class="tab-btn py-2 px-4 text-lg font-semibold ${isCadastroTab ? 'tab-btn-active' : ''}" onclick="App.render('adepto', { index: ${index}, tab: 'cadastro' })">
+                            Cadastro
+                        </button>
+                    </div>
+                `;
+
+                if (isFinanceiroTab) {
+                    content += this.renderFinanceiroAdepto(index);
+                } else {
+                    content += this.renderCadastroAdepto(index);
+                }
+
+                return content;
+            },
+
+            renderCadastroAdepto: function(index) {
+                const adepto = this.db.adeptos[index];
+                let content = `<div class="card-gradient p-6 rounded-lg shadow-xl space-y-4">`;
+                
+                const fields = [
+                    { label: 'Status', value: adepto.ativo !== false ? 'Ativo' : 'Inativo' },
+                    { label: 'Nome Completo', value: adepto.nome },
+                    { label: 'Data de Nascimento', value: this.formatDate(adepto.dataNascimento) },
+                    { label: 'Data de Entrada no TCAPB', value: this.formatDate(adepto.dataEntradaTQPB) },
+                    { label: 'Estado Civil', value: adepto.estadoCivil },
+                    { label: 'Endereço', value: adepto.endereco },
+                    { label: 'Complemento', value: adepto.complemento },
+                    { label: 'E-mail', value: adepto.email },
+                    { label: 'Rede Social', value: `${adepto.redeSocialTipo}: ${adepto.redeSocialUser}` },
+                    { label: 'Telefone para Contato', value: adepto.telefone },
+                    { label: 'Atividade Profissional', value: adepto.atividadeProfissional },
+                    { label: 'Mestre Exu', value: adepto.mestreExu },
+                    { label: 'Mestra Pombagira', value: adepto.mestraPombagira },
+                    { label: 'Como soube quem são os mestres', value: adepto.comoSoube, isLong: true },
+                    { label: 'Obrigações já realizadas', value: adepto.obrigacoesRealizadas, isLong: true },
+                    { label: 'Batismo/Iniciação', value: adepto.statusBatismo },
+                ];
+
+                if (adepto.statusBatismo === 'Batizado(a)') {
+                    fields.push({ label: 'Data de Batismo', value: this.formatDate(adepto.dataBatismo) });
+                }
+
+                fields.push(
+                    { label: 'Alergia ou Doença pré existente', value: adepto.alergiaDoenca, isLong: true },
+                    { label: 'Utiliza medicação ou droga(s)', value: adepto.medicacaoDrogas, isLong: true }
+                );
+
+                fields.forEach(field => {
+                    content += `
+                        <div>
+                            <p class="text-sm font-semibold text-gray-400">${field.label}</p>
+                            <p class="text-gray-200 ${field.isLong ? 'whitespace-pre-wrap' : ''}">${field.value || 'Não informado'}</p>
+                        </div>
+                    `;
+                });
+
+                content += `
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 pt-4 border-t border-gray-700 mt-4">
+                        <button class="btn-primary px-4 py-2 rounded-md bg-red-900 hover:bg-red-800 w-full md:w-auto" onclick="App.deleteAdepto(${index})">Excluir Adepto</button>
+                        <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                            <button class="btn-secondary px-4 py-2 rounded-md w-full md:w-auto" onclick="App.exportAdeptoPDF(${index})">Exportar para PDF</button>
+                            <button class="btn-primary px-4 py-2 rounded-md bg-red-900 hover:bg-red-800 w-full md:w-auto" onclick="App.deleteAdepto(${index})">Excluir Adepto</button>
+                            <button class="btn-secondary px-4 py-2 rounded-md w-full md:w-auto" onclick="App.toggleAdeptoStatus(${index})">${adepto.ativo !== false ? 'Desativar (Inativo)' : 'Reativar (Ativo)'}</button>
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                            <button class="btn-secondary px-4 py-2 rounded-md w-full md:w-auto" onclick="App.exportAdeptoPDF(${index})">Exportar PDF</button>
+                            <button class="btn-primary px-4 py-2 rounded-md w-full md:w-auto" onclick="App.render('adeptoForm', { index: ${index} })">Editar Cadastro</button>
+                        </div>
+                    </div>
+                </div>`;
+                return content;
+            },
+
+            toggleAdeptoStatus: function(index) {
+                const adepto = this.db.adeptos[index];
+                const isAtivo = adepto.ativo !== false;
+                const acao = isAtivo ? 'inativar' : 'reativar';
+                if (confirm(`Tem certeza que deseja ${acao} o adepto "${adepto.nome}"?`)) {
+                    adepto.ativo = !isAtivo;
+                    this.saveDB();
+                    this.render('adepto', { index: index, tab: 'cadastro' });
+                }
+            },
+
+            renderAdeptoForm: function(index = null) {
+                const isEditing = index !== null;
+                const adepto = isEditing ? this.db.adeptos[index] : {};
+                const title = isEditing ? 'Editar Cadastro de Adepto' : 'Cadastrar Novo Adepto';
+
+                const redesSociais = ['Instagram', 'Facebook', 'TikTok', 'Outra'];
 
                 return `
                     <h2 class="text-3xl font-semibold mb-6 text-red-400">${title}</h2>
                     <div class="card-gradient p-6 rounded-lg shadow-xl">
-                        <form id="adepto-form" class="space-y-4">
-                            <div>
-                                <label for="nome" class="block text-sm font-medium text-gray-300 mb-1">Nome Completo</label>
-                                <input type="text" id="nome" value="${adepto.nome || ''}" class="form-input w-full rounded-md shadow-sm" required>
+                        <form id="adepto-form" class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                            
+                            <!-- Coluna 1 -->
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Status</label>
+                                    <select id="statusAtivo" class="form-select w-full">
+                                        <option value="true" ${adepto.ativo !== false ? 'selected' : ''}>Ativo</option>
+                                        <option value="false" ${adepto.ativo === false ? 'selected' : ''}>Inativo</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Nome</label>
+                                    <input type="text" id="nome" value="${adepto.nome || ''}" class="form-input w-full" required>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Data de Nascimento</label>
+                                    <input type="date" id="dataNascimento" value="${adepto.dataNascimento || ''}" class="form-input w-full" style="color-scheme: dark;">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Data de Entrada no TCAPB</label>
+                                    <input type="date" id="dataEntradaTQPB" value="${adepto.dataEntradaTQPB || ''}" class="form-input w-full" style="color-scheme: dark;" required>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Estado Civil</label>
+                                    <input type="text" id="estadoCivil" value="${adepto.estadoCivil || ''}" class="form-input w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Endereço</label>
+                                    <input type="text" id="endereco" value="${adepto.endereco || ''}" class="form-input w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Complemento</label>
+                                    <input type="text" id="complemento" value="${adepto.complemento || ''}" class="form-input w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
+                                    <input type="email" id="email" value="${adepto.email || ''}" class="form-input w-full">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">Rede Social</label>
+                                        <select id="redeSocialTipo" class="form-select w-full">
+                                            ${redesSociais.map(r => `<option ${adepto.redeSocialTipo === r ? 'selected' : ''}>${r}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">@Usuário</label>
+                                        <input type="text" id="redeSocialUser" value="${adepto.redeSocialUser || ''}" class="form-input w-full">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Telefone para Contato</label>
+                                    <input type="tel" id="telefone" value="${adepto.telefone || ''}" class="form-input w-full">
+                                </div>
                             </div>
-                            <div>
-                                <label for="mensalidade" class="block text-sm font-medium text-gray-300 mb-1">Valor da Mensalidade (R$)</label>
-                                <input type="number" id="mensalidade" value="${adepto.mensalidade || ''}" step="0.01" min="0" class="form-input w-full rounded-md shadow-sm" required>
+
+                            <!-- Coluna 2 -->
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Atividade Profissional</label>
+                                    <input type="text" id="atividadeProfissional" value="${adepto.atividadeProfissional || ''}" class="form-input w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Mestre Exu</label>
+                                    <input type="text" id="mestreExu" value="${adepto.mestreExu || ''}" class="form-input w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Mestra Pombagira</label>
+                                    <input type="text" id="mestraPombagira" value="${adepto.mestraPombagira || ''}" class="form-input w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Como soube quem são os mestres de Quimbanda</label>
+                                    <textarea id="comoSoube" class="form-textarea w-full" rows="3">${adepto.comoSoube || ''}</textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Obrigações já realizadas espiritualmente</label>
+                                    <textarea id="obrigacoesRealizadas" class="form-textarea w-full" rows="3">${adepto.obrigacoesRealizadas || ''}</textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Batismo/Iniciação</label>
+                                    <select id="statusBatismo" class="form-select w-full" onchange="App.toggleDataBatismo(this.value)">
+                                        <option ${adepto.statusBatismo === 'Não Batizado(a)' ? 'selected' : ''}>Não Batizado(a)</option>
+                                        <option ${adepto.statusBatismo === 'Batizado(a)' ? 'selected' : ''}>Batizado(a)</option>
+                                    </select>
+                                </div>
+                                <div id="dataBatismoContainer" style="display: ${adepto.statusBatismo === 'Batizado(a)' ? 'block' : 'none'};">
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Data de Batismo</label>
+                                    <input type="date" id="dataBatismo" value="${adepto.dataBatismo || ''}" class="form-input w-full" style="color-scheme: dark;">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Possui alguma alergia ou doença pré existente</label>
+                                    <textarea id="alergiaDoenca" class="form-textarea w-full" rows="3">${adepto.alergiaDoenca || ''}</textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Utiliza algum tipo de medicação ou droga(s)</label>
+                                    <textarea id="medicacaoDrogas" class="form-textarea w-full" rows="3">${adepto.medicacaoDrogas || ''}</textarea>
+                                </div>
                             </div>
-                            <div class="flex justify-end gap-4 pt-4">
-                                <button type="button" class="btn-secondary px-4 py-2 rounded-md" onclick="App.render('adeptosList')">Cancelar</button>
-                                <button type="button" class="btn-primary px-4 py-2 rounded-md" onclick="${action}">${buttonText}</button>
+
+                            <!-- Botões -->
+                            <div class="md:col-span-2 flex justify-end gap-4 pt-4">
+                                <button type="button" class="btn-secondary px-4 py-2 rounded-md" onclick="App.render('${isEditing ? `adepto` : `adeptosList`}', { index: ${index} })">Cancelar</button>
+                                <button type="button" class="btn-primary px-4 py-2 rounded-md" onclick="App.saveAdepto(${index})">Salvar Cadastro</button>
                             </div>
                         </form>
                     </div>
                 `;
             },
 
-            /**
-             * Salva um adepto (novo ou editado).
-             */
-            saveAdepto: function(adeptoIndex = null) {
-                const nome = document.getElementById('nome').value;
-                const mensalidade = parseFloat(document.getElementById('mensalidade').value);
+            toggleDataBatismo: function(value) {
+                const container = document.getElementById('dataBatismoContainer');
+                if (value === 'Batizado(a)') {
+                    container.style.display = 'block';
+                } else {
+                    container.style.display = 'none';
+                }
+            },
 
-                if (!nome || isNaN(mensalidade) || mensalidade < 0) {
-                    alert('Por favor, preencha todos os campos corretamente.');
+            saveAdepto: function(index = null) {
+                const adeptoData = {
+                    ativo: document.getElementById('statusAtivo').value === 'true',
+                    nome: document.getElementById('nome').value.trim(),
+                    dataNascimento: document.getElementById('dataNascimento').value,
+                    dataEntradaTQPB: document.getElementById('dataEntradaTQPB').value,
+                    estadoCivil: document.getElementById('estadoCivil').value,
+                    endereco: document.getElementById('endereco').value,
+                    complemento: document.getElementById('complemento').value,
+                    email: document.getElementById('email').value,
+                    redeSocialTipo: document.getElementById('redeSocialTipo').value,
+                    redeSocialUser: document.getElementById('redeSocialUser').value,
+                    telefone: document.getElementById('telefone').value,
+                    atividadeProfissional: document.getElementById('atividadeProfissional').value,
+                    mestreExu: document.getElementById('mestreExu').value,
+                    mestraPombagira: document.getElementById('mestraPombagira').value,
+                    comoSoube: document.getElementById('comoSoube').value,
+                    obrigacoesRealizadas: document.getElementById('obrigacoesRealizadas').value,
+                    statusBatismo: document.getElementById('statusBatismo').value,
+                    dataBatismo: document.getElementById('dataBatismo').value,
+                    alergiaDoenca: document.getElementById('alergiaDoenca').value,
+                    medicacaoDrogas: document.getElementById('medicacaoDrogas').value,
+                };
+
+                if (adeptoData.statusBatismo !== 'Batizado(a)') {
+                    adeptoData.dataBatismo = ''; // Limpa a data se não for batizado
+                }
+
+                if (!adeptoData.nome || !adeptoData.dataEntradaTQPB) {
+                    alert('Os campos "Nome" e "Data de Entrada no TCAPB" são obrigatórios.');
                     return;
                 }
 
-                if (adeptoIndex !== null) {
-                    // Editando
-                    this.db.adeptos[adeptoIndex].nome = nome;
-                    this.db.adeptos[adeptoIndex].mensalidade = mensalidade;
+                if (index !== null) {
+                    const oldData = this.db.adeptos[index];
+                    this.db.adeptos[index] = { ...oldData, ...adeptoData };
                 } else {
-                    // Adicionando novo
-                    const novoAdepto = {
-                        id: Date.now(), // ID único
-                        nome: nome,
-                        mensalidade: mensalidade,
-                        pagamentos: {} // Objeto para armazenar pagamentos por ano
-                    };
-                    this.db.adeptos.push(novoAdepto);
+                    adeptoData.id = Date.now();
+                    adeptoData.financeiro = { mensalidades: {}, debitos: [] };
+                    this.db.adeptos.push(adeptoData);
+                    index = this.db.adeptos.length - 1;
                 }
 
                 this.saveDB();
-                this.render('adeptosList');
+                this.render('adepto', { index: index, tab: 'cadastro' });
             },
 
-            /**
-             * Apaga um adepto.
-             */
             deleteAdepto: function(index) {
                 if (confirm(`Tem certeza que deseja apagar o adepto "${this.db.adeptos[index].nome}"? Esta ação não pode ser desfeita.`)) {
                     this.db.adeptos.splice(index, 1);
@@ -460,609 +960,800 @@
             },
 
             // 4. SEÇÃO: FINANCEIRO
+            renderFinanceiroAdepto: function(index) {
+                this.checkAndUpdateMensalidades(index);
 
-            /**
-             * Renderiza a lista de adeptos para acesso ao financeiro.
-             */
-            renderFinanceiroList: function() {
-                let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Financeiro - Selecione um Adepto</h2>`;
-                content += '<div class="card-gradient p-6 rounded-lg shadow-xl">';
+                let content = `<div class="space-y-8">`;
 
-                if (this.db.adeptos.length === 0) {
-                    content += '<p class="text-gray-400">Nenhum adepto cadastrado. Adicione um adepto primeiro.</p>';
-                } else {
-                    content += '<ul class="space-y-2">';
-                    this.db.adeptos.forEach((adepto, index) => {
-                        content += `
-                            <li>
-                                <button class="w-full text-left p-4 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors duration-200" onclick="App.render('financeiroAdepto', ${index})">
-                                    <span class="font-semibold text-gray-200">${adepto.nome}</span>
-                                </button>
-                            </li>
-                        `;
-                    });
-                    content += '</ul>';
-                }
+                // --- SEÇÃO DE MENSALIDADES ---
+                content += `
+                    <div class="card-gradient p-6 rounded-lg shadow-xl">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-200">Mensalidades</h3>
+                        <div class="flex justify-center items-center gap-4 mb-6">
+                            <button class="btn-secondary p-2 rounded-full" onclick="App.changeFinanceiroYear(${index}, -1)"> &lt; </button>
+                            <span class="text-2xl font-semibold text-gray-200">${this.state.currentFinanceiroYear}</span>
+                            <button class="btn-secondary p-2 rounded-full" onclick="App.changeFinanceiroYear(${index}, 1)"> &gt; </button>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            ${this.renderBotoesMensalidade(index)}
+                        </div>
+                    </div>
+                `;
 
-                content += '</div>';
+                // --- SEÇÃO DE DÉBITOS/COMPRAS ---
+                content += this.renderDebitosSection(index);
+
+                // --- RESUMO FINANCEIRO ---
+                const resumo = this.calcularResumoFinanceiro(index);
+                const saldoClass = resumo.saldo < 0 ? 'text-red-400' : 'text-green-400';
+                content += `
+                    <div class="card-gradient p-6 rounded-lg shadow-xl mt-8 sticky bottom-4">
+                        <h3 class="text-xl font-semibold mb-2 text-gray-200">Resumo Financeiro</h3>
+                        <div class="flex justify-between items-center text-lg">
+                            <span class="font-semibold">Saldo:</span>
+                            <span class="font-bold ${saldoClass}">${this.formatCurrency(resumo.saldo)}</span>
+                        </div>
+                    </div>
+                `;
+
+                content += `</div>`;
                 return content;
             },
 
-            /**
-             * Renderiza a página de detalhes financeiros de um adepto.
-             */
-            renderFinanceiroAdepto: function(adeptoIndex) {
+            renderBotoesMensalidade: function(adeptoIndex) {
                 const adepto = this.db.adeptos[adeptoIndex];
-                if (!adepto) return this.renderFinanceiroList(); // Segurança
+                const ano = this.state.currentFinanceiroYear;
+                const mensalidadesDoAno = adepto.financeiro.mensalidades[ano] || {};
+                const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                
+                let buttonsHTML = '';
+                for (let mesIndex = 0; mesIndex < 12; mesIndex++) {
+                    const mensalidade = mensalidadesDoAno[mesIndex] || {};
+                    const status = mensalidade.status || 'desativado';
+                    let statusClass = '';
+                    let isDisabled = false;
 
-                // Garante que a estrutura de pagamentos existe
-                if (!adepto.pagamentos) adepto.pagamentos = {};
-                if (!adepto.pagamentos[this.state.currentYear]) adepto.pagamentos[this.state.currentYear] = [];
-
-                let content = `
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-3xl font-semibold text-red-400">${adepto.nome}</h2>
-                        <button class="btn-secondary px-4 py-2 rounded-md" onclick="App.render('financeiroList')">Voltar</button>
-                    </div>
-                    <p class="text-gray-400 mb-6">Mensalidade: ${this.formatCurrency(adepto.mensalidade)}</p>
-                `;
-
-                // Navegação de Ano
-                content += `
-                    <div class="flex justify-center items-center gap-4 mb-6">
-                        <button class="btn-secondary p-2 rounded-full" onclick="App.changeYear(${adeptoIndex}, -1)">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
-                        </button>
-                        <span class="text-2xl font-semibold text-gray-200">${this.state.currentYear}</span>
-                        <button class="btn-secondary p-2 rounded-full" onclick="App.changeYear(${adeptoIndex}, 1)">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
-                        </button>
-                    </div>
-                `;
-
-                // Grid de Meses
-                content += '<div class="card-gradient p-6 rounded-lg shadow-xl"><div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">';
-                const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-                const pagamentosDoAno = adepto.pagamentos[this.state.currentYear] || [];
-
-                meses.forEach((mes, mesIndex) => {
-                    const isPago = pagamentosDoAno.includes(mesIndex);
-                    const isPassado = new Date(this.state.currentYear, mesIndex) < new Date() && !isPago;
-                    
-                    let statusClass = 'bg-gray-600 hover:bg-gray-500'; // Padrão (futuro)
-                    if (isPago) {
-                        statusClass = 'bg-green-600 hover:bg-green-500'; // Pago
-                    } else if (isPassado) {
-                        statusClass = 'bg-red-700 hover:bg-red-600'; // Atrasado
+                     switch (status) {
+                        case 'pendente': statusClass = 'bg-red-700 hover:bg-red-600'; break;
+                        case 'pago': statusClass = 'bg-green-600 hover:bg-green-500'; break;
+                        case 'adiantado': statusClass = 'bg-yellow-500 hover:bg-yellow-400'; break;
+                        case 'parcial': statusClass = 'bg-blue-600 hover:bg-blue-500'; break;
+                        case 'isento': statusClass = 'bg-gray-500 hover:bg-gray-400'; break;
+                        case 'futuro': statusClass = 'bg-gray-600 hover:bg-gray-500'; break;
+                        default:
+                            statusClass = 'bg-gray-800 opacity-50 cursor-not-allowed';
+                            isDisabled = true;
                     }
-
-                    content += `
-                        <button class="p-4 rounded-md text-white font-semibold transition-colors duration-200 ${statusClass}" onclick="App.togglePagamento(${adeptoIndex}, ${this.state.currentYear}, ${mesIndex})">
-                            ${mes}
+                    
+                    buttonsHTML += `
+                        <button class="p-3 rounded-md text-white font-semibold transition-colors duration-200 ${statusClass}" 
+                                ${isDisabled ? 'disabled' : `onclick="App.togglePagamentoMensalidade(${adeptoIndex}, ${ano}, ${mesIndex})"`}>
+                            ${nomesMeses[mesIndex]}
+                            ${status === 'parcial' ? `<br><span class="text-xs font-normal">${this.formatCurrency(mensalidade.valorPago)}</span>` : ''}
                         </button>
                     `;
-                });
-
-                content += '</div></div>';
-                return content;
+                }
+                return buttonsHTML;
             },
 
-            /**
-             * Alterna o status de pagamento de um mês para um adepto.
-             */
-            togglePagamento: function(adeptoIndex, ano, mesIndex) {
+            checkAndUpdateMensalidades: function(adeptoIndex) {
                 const adepto = this.db.adeptos[adeptoIndex];
-                if (!adepto.pagamentos[ano]) {
-                    adepto.pagamentos[ano] = [];
+                const dataEntrada = this.parseDate(adepto.dataEntradaTQPB);
+                if (!dataEntrada) return;
+
+                const hoje = new Date();
+                const anoAtual = hoje.getFullYear();
+                const mesAtual = hoje.getMonth();
+                const anoAlvo = this.state.currentFinanceiroYear;
+
+                // Garante que o ano atual e o ano alvo (e todos entre eles) existam
+                const anoMaximo = Math.max(anoAtual + 5, anoAlvo + 5); // Garante 5 anos no futuro
+                for (let ano = 2024; ano <= anoMaximo; ano++) {
+                    if (!adepto.financeiro.mensalidades[ano]) {
+                        adepto.financeiro.mensalidades[ano] = {};
+                    }
+
+                    for (let mes = 0; mes < 12; mes++) {
+                        const dataReferencia = new Date(ano, mes, 1);
+                        
+                        const mesEntrada = new Date(dataEntrada.getFullYear(), dataEntrada.getMonth(), 1);
+                        if (dataReferencia < mesEntrada) {
+                            if (!adepto.financeiro.mensalidades[ano][mes]) {
+                                adepto.financeiro.mensalidades[ano][mes] = { status: 'desativado' };
+                            }
+                            continue;
+                        }
+                        if (!adepto.financeiro.mensalidades[ano][mes]) {
+                            if (ano < anoAtual || (ano === anoAtual && mes <= mesAtual)) {
+                                adepto.financeiro.mensalidades[ano][mes] = { status: 'pendente', valorPago: 0 };
+                            } else {
+                                adepto.financeiro.mensalidades[ano][mes] = { status: 'futuro' };
+                            }
+                        }
+                    }
                 }
+                this.saveDB();
+            },
 
-                const pagamentosDoAno = adepto.pagamentos[ano];
-                const pagamentoIndex = pagamentosDoAno.indexOf(mesIndex);
+            togglePagamentoMensalidade: function(adeptoIndex, ano, mes) {
+                const mensalidade = this.db.adeptos[adeptoIndex].financeiro.mensalidades[ano][mes];
 
-                if (pagamentoIndex > -1) {
-                    // Se já pagou, remove o pagamento (estorna)
-                    pagamentosDoAno.splice(pagamentoIndex, 1);
-                } else {
-                    // Se não pagou, adiciona o pagamento
-                    pagamentosDoAno.push(mesIndex);
+                switch (mensalidade.status) {
+                    case 'pendente':
+                    case 'futuro':
+                        mensalidade.status = 'pago';
+                        mensalidade.valorPago = this.config.valorMensalidade;
+                        break;
+                    case 'pago':
+                        mensalidade.status = 'adiantado';
+                        mensalidade.valorPago = this.config.valorMensalidade;
+                        break;
+                    case 'adiantado':
+                        mensalidade.status = 'parcial';
+                        const valorParcial = parseFloat(prompt("Informe o valor parcial pago:", ""));
+                        if (valorParcial === null || isNaN(valorParcial)) {
+                            mensalidade.status = 'adiantado';
+                        } else if (!isNaN(valorParcial) && valorParcial > 0) {
+                            mensalidade.valorPago = valorParcial;
+                        } else {
+                            alert("Valor inválido. O status será revertido para 'Adiantado'.");
+                            mensalidade.status = 'adiantado';
+                        }
+                        break;
+                    case 'parcial':
+                        mensalidade.status = 'isento';
+                        mensalidade.valorPago = 0;
+                        break;
+                    case 'isento':
+                        mensalidade.status = 'pendente';
+                        mensalidade.valorPago = 0;
+                        break;
                 }
 
                 this.saveDB();
-                this.render('financeiroAdepto', adeptoIndex); // Re-renderiza a página do adepto
+                this.render('adepto', { index: adeptoIndex, tab: 'financeiro' });
+            },
+            
+            changeFinanceiroYear: function(adeptoIndex, direction) {
+                this.state.currentFinanceiroYear += direction;
+                this.render('adepto', { index: adeptoIndex, tab: 'financeiro' });
             },
 
-            /**
-             * Muda o ano na visualização financeira.
-             */
-            changeYear: function(adeptoIndex, direction) {
-                this.state.currentYear += direction;
-                this.render('financeiroAdepto', adeptoIndex);
-            },
-
-            // 5. SEÇÃO: CAPITAL E CUSTOS
-
-            /**
-             * Renderiza a página de balanço de capital.
-             */
-            renderCapital: function() {
-                let totalMensalidades = 0;
-                let totalContribuicoes = 0;
-                let totalCustosPagos = 0;
-                let totalCustosPendentes = 0;
-
-                // Calcula total de mensalidades pagas
-                this.db.adeptos.forEach(adepto => {
-                    if (adepto.pagamentos) {
-                        Object.keys(adepto.pagamentos).forEach(ano => {
-                            const dataAno = parseInt(ano, 10);
-                            // Considera apenas a partir de 2024
-                            if (dataAno >= 2024) {
-                                totalMensalidades += adepto.pagamentos[ano].length * adepto.mensalidade;
-                            }
-                        });
-                    }
-                });
-
-                // Calcula total de contribuições
-                this.db.contribuicoes.forEach(c => {
-                    const dataContrib = this.parseDate(c.data);
-                    if (dataContrib && dataContrib >= this.dataLimite) {
-                        totalContribuicoes += c.valor;
-                    }
-                });
-
-                // Calcula totais de custos
-                this.db.custos.forEach(custo => {
-                    const dataCusto = this.parseDate(custo.data);
-                    if (dataCusto && dataCusto >= this.dataLimite) {
-                        if (custo.pago) {
-                            totalCustosPagos += custo.valor;
-                        } else {
-                            totalCustosPendentes += custo.valor;
-                        }
-                    }
-                });
-
-                const receitaTotal = totalMensalidades + totalContribuicoes;
-                const balanco = receitaTotal - totalCustosPagos;
+            // --- SEÇÃO DE DÉBITOS ---
+            renderDebitosSection: function(adeptoIndex) {
+                const isEditing = this.state.editingDebitoIndex !== null;
+                const debito = isEditing ? this.db.adeptos[adeptoIndex].financeiro.debitos[this.state.editingDebitoIndex] : {};
 
                 let content = `
-                    <h2 class="text-3xl font-semibold mb-6 text-red-400">Balanço de Capital (a partir de 2024)</h2>
-                    <div class="space-y-6">
-                        <!-- Receitas -->
-                        <div class="card-gradient p-6 rounded-lg shadow-xl">
-                            <h3 class="text-xl font-semibold mb-4 text-gray-200">Receitas</h3>
-                            <div class="space-y-2">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-300">Total de Mensalidades Recebidas:</span>
-                                    <span class="font-bold text-green-400">${this.formatCurrency(totalMensalidades)}</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-300">Total de Contribuições Voluntárias:</span>
-                                    <span class="font-bold text-green-400">${this.formatCurrency(totalContribuicoes)}</span>
-                                </div>
-                                <div class="flex justify-between items-center border-t border-gray-600 pt-2 mt-2">
-                                    <span class="text-lg font-semibold text-gray-200">Receita Total:</span>
-                                    <span class="text-lg font-bold text-green-300">${this.formatCurrency(receitaTotal)}</span>
-                                </div>
-                            </div>
+                    <div class="card-gradient p-6 rounded-lg shadow-xl">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-200">${isEditing ? 'Editar Débito' : 'Débitos e Compras'}</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <input type="date" id="debito-data" class="form-input md:col-span-1" style="color-scheme: dark;" value="${debito.data || ''}">
+                            <input type="text" id="debito-obs" placeholder="Observação" class="form-input md:col-span-2" value="${debito.obs || ''}">
+                            <input type="number" id="debito-valor" placeholder="Valor (R$)" class="form-input" value="${debito.valor || ''}">
+                            <button class="btn-primary md:col-span-4" onclick="App.saveDebito(${adeptoIndex})">${isEditing ? 'Atualizar Débito' : 'Adicionar Débito'}</button>
+                            ${isEditing ? `<button class="btn-secondary md:col-span-4 mt-2" onclick="App.cancelEditDebito(${adeptoIndex})">Cancelar Edição</button>` : ''}
                         </div>
-
-                        <!-- Despesas -->
-                        <div class="card-gradient p-6 rounded-lg shadow-xl">
-                            <h3 class="text-xl font-semibold mb-4 text-gray-200">Despesas</h3>
-                            <div class="space-y-2">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-300">Custos Pagos:</span>
-                                    <span class="font-bold text-red-400">${this.formatCurrency(totalCustosPagos)}</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-300">Custos Pendentes (A Pagar):</span>
-                                    <span class="font-bold text-yellow-400">${this.formatCurrency(totalCustosPendentes)}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Balanço Final -->
-                        <div class="card-gradient p-6 rounded-lg shadow-xl border ${balanco >= 0 ? 'border-green-500' : 'border-red-500'}">
-                            <div class="flex justify-between items-center text-xl">
-                                <span class="font-semibold text-gray-100">Balanço Final (Caixa):</span>
-                                <span class="font-bold ${balanco >= 0 ? 'text-green-400' : 'text-red-400'}">${this.formatCurrency(balanco)}</span>
-                            </div>
-                            <p class="text-sm text-gray-400 mt-2">(Receita Total - Custos Pagos)</p>
+                        <div id="debitos-list" class="space-y-3">
+                            ${this.renderListaDebitos(adeptoIndex)}
                         </div>
                     </div>
                 `;
                 return content;
             },
 
-            /**
-             * Renderiza a página de custos do templo.
-             */
-            renderCustos: function(data = {}) {
-                let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Custos do Templo</h2>`;
-                const editingIndex = data.editingIndex !== undefined ? data.editingIndex : null;
-                const isEditing = editingIndex !== null;
-                const custo = isEditing ? this.db.custos[editingIndex] : {};
+            renderListaDebitos: function(adeptoIndex) {
+                const adepto = this.db.adeptos[adeptoIndex];
+                if (!adepto.financeiro?.debitos || adepto.financeiro.debitos.length === 0) {
+                    return '<p class="text-gray-400">Nenhum débito registrado.</p>';
+                }
+
+                return adepto.financeiro.debitos.map((debito, debitoIndex) => {
+                    let statusClass, statusText;
+                    switch(debito.status) {
+                        case 'pago':
+                            statusClass = 'bg-green-600'; statusText = 'Pago'; break;
+                        case 'parcial':
+                            statusClass = 'bg-blue-600'; statusText = `Parcial (${this.formatCurrency(debito.valorPago)})`; break;
+                        default:
+                            statusClass = 'bg-red-700'; statusText = 'Pendente';
+                    }
+
+                    return `
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-gray-500 rounded-md gap-2">
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-100">${this.formatDate(debito.data)} - ${debito.obs}</p>
+                                <p class="text-sm text-gray-200">${this.formatCurrency(debito.valor)}</p>
+                            </div>
+                            <div class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+                                <button class="flex-grow text-center px-3 py-1 rounded-md text-white text-xs font-medium ${statusClass}" onclick="App.toggleDebitoStatus(${adeptoIndex}, ${debitoIndex})">
+                                    ${statusText}
+                                </button>
+                                <button class="px-3 py-1 rounded-md text-white text-xs font-medium bg-blue-600" onclick="App.setDebitoParcial(${adeptoIndex}, ${debitoIndex})">
+                                    Parcial
+                                </button>
+                                <button class="text-blue-300 hover:text-blue-200 p-1" onclick="App.editDebito(${adeptoIndex}, ${debitoIndex})" title="Editar Débito">✏️</button>
+                                <button class="text-red-400 hover:text-red-300 p-1" onclick="App.deleteDebito(${adeptoIndex}, ${debitoIndex})" title="Apagar Débito">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            saveDebito: function(adeptoIndex) {
+                const data = document.getElementById('debito-data').value;
+                const obs = document.getElementById('debito-obs').value;
+                const valor = parseFloat(document.getElementById('debito-valor').value);
+
+                if (!data || !obs || isNaN(valor) || valor <= 0) {
+                    alert('Por favor, preencha todos os campos do débito corretamente.');
+                    return;
+                }
+
+                if (this.state.editingDebitoIndex !== null) {
+                    const debito = this.db.adeptos[adeptoIndex].financeiro.debitos[this.state.editingDebitoIndex];
+                    debito.data = data;
+                    debito.obs = obs;
+                    debito.valor = valor;
+                } else {
+                    this.db.adeptos[adeptoIndex].financeiro.debitos.unshift({ data, obs, valor, status: 'pendente', valorPago: 0 });
+                }
                 
-                // Formulário para adicionar/editar custo
+                this.state.editingDebitoIndex = null;
+                this.saveDB();
+                this.render('adepto', { index: adeptoIndex, tab: 'financeiro' });
+            },
+
+            editDebito: function(adeptoIndex, debitoIndex) {
+                this.render('adepto', { index: adeptoIndex, tab: 'financeiro', editingDebitoIndex: debitoIndex });
+            },
+
+            cancelEditDebito: function(adeptoIndex) {
+                this.render('adepto', { index: adeptoIndex, tab: 'financeiro', editingDebitoIndex: null });
+            },
+
+            toggleDebitoStatus: function(adeptoIndex, debitoIndex) {
+                const debito = this.db.adeptos[adeptoIndex].financeiro.debitos[debitoIndex];
+                if (debito.status === 'pago') {
+                    debito.status = 'pendente';
+                    debito.valorPago = 0;
+                } else {
+                    debito.status = 'pago';
+                    debito.valorPago = debito.valor;
+                }
+                this.saveDB();
+                this.render('adepto', { index: adeptoIndex, tab: 'financeiro' });
+            },
+
+            setDebitoParcial: function(adeptoIndex, debitoIndex) {
+                const debito = this.db.adeptos[adeptoIndex].financeiro.debitos[debitoIndex];
+                const valorParcial = parseFloat(prompt("Informe o valor parcial pago:", debito.valorPago || ""));
+                
+                if (valorParcial === null) return;
+
+                if (!isNaN(valorParcial) && valorParcial >= 0 && valorParcial < debito.valor) {
+                    debito.status = 'parcial';
+                    debito.valorPago = valorParcial;
+                } else if (valorParcial >= debito.valor) {
+                    debito.status = 'pago';
+                    debito.valorPago = debito.valor;
+                } else {
+                    alert("Valor inválido.");
+                }
+                this.saveDB();
+                this.render('adepto', { index: adeptoIndex, tab: 'financeiro' });
+            },
+
+            deleteDebito: function(adeptoIndex, debitoIndex) {
+                if (confirm('Tem certeza que deseja apagar este débito?')) {
+                    this.db.adeptos[adeptoIndex].financeiro.debitos.splice(debitoIndex, 1);
+                    this.saveDB();
+                    this.render('adepto', { index: adeptoIndex, tab: 'financeiro' });
+                }
+            },
+
+            calcularResumoFinanceiro: function(adeptoIndex) {
+                const adepto = this.db.adeptos[adeptoIndex];
+                let saldo = 0;
+
+                for (const ano in adepto.financeiro.mensalidades) {
+                    for (const mes in adepto.financeiro.mensalidades[ano] || {}) {
+                        const mensalidade = adepto.financeiro.mensalidades[ano][mes];
+                        if (mensalidade.status === 'pendente') {
+                            saldo -= this.config.valorMensalidade;
+                        } else if (mensalidade.status === 'parcial') {
+                            saldo -= (this.config.valorMensalidade - mensalidade.valorPago);
+                        }
+                    }
+                }
+
+                (adepto.financeiro.debitos || []).forEach(debito => {
+                    if (debito.status === 'pendente') {
+                        saldo -= debito.valor;
+                    } else if (debito.status === 'parcial') {
+                        saldo -= (debito.valor - debito.valorPago);
+                    }
+                });
+
+                return { saldo };
+            },
+
+            // Variável para armazenar a instância do gráfico
+            chartInstance: null,
+
+            destroyChart: function() {
+                if (this.chartInstance) {
+                    this.chartInstance.destroy();
+                    this.chartInstance = null;
+                }
+            },
+            // 5. SEÇÃO: CAIXA, CUSTOS E CONTRIBUIÇÕES
+            renderCaixa: function() {
+                const anosDisponiveis = this.getAnosDisponiveis();
+                const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Balanço de Caixa</h2>`;
+
+                // Filtros
+                content += `<div class="card-gradient p-6 rounded-lg shadow-xl mb-6">`;
+                content += `<h3 class="text-xl font-semibold mb-4 text-gray-200">Filtrar Período</h3>`;
+                content += `<div class="flex flex-wrap gap-4">`;
+                content += `<div class="flex-1 min-w-[120px]">
+                                <label for="caixa-ano-select" class="block text-sm font-medium text-gray-300 mb-1">Ano</label>
+                                <select id="caixa-ano-select" class="form-select w-full" onchange="App.selectCaixaAno(this.value)">
+                                    ${anosDisponiveis.map(ano => `<option value="${ano}" ${ano === this.state.selectedCaixaAno ? 'selected' : ''}>${ano}</option>`).join('')}
+                                </select>
+                            </div>`;
+                content += `<div class="flex-1 min-w-[120px]">
+                                <label for="caixa-mes-select" class="block text-sm font-medium text-gray-300 mb-1">Mês</label>
+                                <select id="caixa-mes-select" class="form-select w-full" onchange="App.selectCaixaMes(this.value)">
+                                    ${nomesMeses.map((nome, index) => `<option value="${index}" ${index === this.state.selectedCaixaMes ? 'selected' : ''}>${nome}</option>`).join('')}
+                                </select>
+                            </div>`;
+                content += `</div></div>`;
+
+                // --- Cálculos Mensais ---
+                const anoSel = this.state.selectedCaixaAno;
+                const mesSel = this.state.selectedCaixaMes;
+
+                let mensalidadesMes = 0;
+                let debitosPagosMes = 0;
+                this.db.adeptos.forEach(adepto => {
+                    // Soma mensalidades pagas no mês
+                    const mensalidade = adepto.financeiro?.mensalidades?.[anoSel]?.[mesSel];
+                    if (mensalidade) {
+                        if (mensalidade.status === 'pago' || mensalidade.status === 'adiantado') {
+                            mensalidadesMes += this.config.valorMensalidade;
+                        } else if (mensalidade.status === 'parcial') {
+                            mensalidadesMes += mensalidade.valorPago;
+                        }
+                    }
+                    // Soma débitos pagos no mês
+                    (adepto.financeiro.debitos || []).forEach(debito => {
+                        const dataDebito = this.parseDate(debito.data);
+                        if (debito.status === 'pago' && dataDebito && dataDebito.getFullYear() === anoSel && dataDebito.getMonth() === mesSel) {
+                            debitosPagosMes += debito.valor;
+                        }
+                    });
+                });
+                const contribuicoesMes = this.db.contribuicoes.reduce((acc, c) => {
+                    const data = this.parseDate(c.data);
+                    return data && data.getFullYear() === anoSel && data.getMonth() === mesSel ? acc + c.valor : acc;
+                }, 0);
+                const custosMes = this.db.custos.reduce((acc, c) => {
+                    const data = this.parseDate(c.data);
+                    return data && c.pago && data.getFullYear() === anoSel && data.getMonth() === mesSel ? acc + c.valor : acc;
+                }, 0);
+                const entradasMes = mensalidadesMes + contribuicoesMes + debitosPagosMes;
+                const balancoMes = entradasMes - custosMes;
+
+                // --- Cálculos Anuais ---
+                let mensalidadesAno = 0;
+                let debitosPagosAno = 0;
+                this.db.adeptos.forEach(adepto => {
+                    // Soma débitos pagos no ano
+                     (adepto.financeiro.debitos || []).forEach(debito => {
+                        const dataDebito = this.parseDate(debito.data);
+                        if (debito.status === 'pago' && dataDebito && dataDebito.getFullYear() === anoSel) {
+                            debitosPagosAno += debito.valor;
+                        }
+                    });
+                    // Soma mensalidades pagas no ano
+                    const mensalidadesDoAno = adepto.financeiro?.mensalidades?.[anoSel] ?? {};
+                    for (const mes in mensalidadesDoAno) {
+                        const mensalidade = mensalidadesDoAno[mes];
+                        if (mensalidade.status === 'pago' || mensalidade.status === 'adiantado') {
+                            mensalidadesAno += this.config.valorMensalidade;
+                        } else if (mensalidade.status === 'parcial') {
+                            mensalidadesAno += mensalidade.valorPago;
+                        }
+                    }
+                });
+                const contribuicoesAno = this.db.contribuicoes.reduce((acc, c) => this.parseDate(c.data)?.getFullYear() === anoSel ? acc + c.valor : acc, 0);
+                const custosAno = this.db.custos.reduce((acc, c) => this.parseDate(c.data)?.getFullYear() === anoSel && c.pago ? acc + c.valor : acc, 0);
+                const entradasAno = mensalidadesAno + contribuicoesAno + debitosPagosAno;
+                const balancoAno = entradasAno - custosAno;
+
+                // --- Renderização ---
+                content += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in">`;
+
+                // Coluna Balanço Mensal
+                content += `<div class="space-y-6">
+                                <div class="card-gradient p-6 rounded-lg shadow-xl">
+                                    <h3 class="text-xl font-semibold mb-4 text-gray-200">Balanço de ${nomesMeses[mesSel]} de ${anoSel}</h3>
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between items-center"><span class="text-gray-300">Entradas (Débitos Pagos):</span><span class="font-bold text-green-400">${this.formatCurrency(debitosPagosMes)}</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-gray-300">Entradas (Mensalidades):</span><span class="font-bold text-green-400">${this.formatCurrency(mensalidadesMes)}</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-gray-300">Entradas (Contribuições):</span><span class="font-bold text-green-400">${this.formatCurrency(contribuicoesMes)}</span></div>
+                                        <div class="flex justify-between items-center border-t border-gray-600 pt-2 mt-2"><span class="font-semibold text-gray-200">Total de Entradas:</span><span class="font-bold text-green-300">${this.formatCurrency(entradasMes)}</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-gray-300">Total de Saídas (Custos):</span><span class="font-bold text-red-400">${this.formatCurrency(custosMes)}</span></div>
+                                        <div class="flex justify-between items-center text-lg border-t-2 border-gray-500 pt-3 mt-3"><span class="font-semibold text-gray-100">Saldo do Mês:</span><span class="font-bold ${balancoMes >= 0 ? 'text-green-400' : 'text-red-400'}">${this.formatCurrency(balancoMes)}</span></div>
+                                    </div>
+                                </div>
+                                <div class="card-gradient p-6 rounded-lg shadow-xl">
+                                    <h3 class="text-xl font-semibold mb-4 text-gray-200">Proporção do Mês</h3>
+                                    <canvas id="caixa-chart"></canvas>
+                                </div>
+                            </div>`;
+
+                // Coluna Balanço Anual
+                content += `<div class="space-y-6">
+                                <div class="card-gradient p-6 rounded-lg shadow-xl">
+                                    <h3 class="text-xl font-semibold mb-4 text-gray-200">Resumo do Ano de ${anoSel}</h3>
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between items-center"><span class="text-gray-300">Entradas (Débitos Pagos):</span><span class="font-bold text-green-400">${this.formatCurrency(debitosPagosAno)}</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-gray-300">Entradas (Mensalidades):</span><span class="font-bold text-green-400">${this.formatCurrency(mensalidadesAno)}</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-gray-300">Entradas (Contribuições):</span><span class="font-bold text-green-400">${this.formatCurrency(contribuicoesAno)}</span></div>
+                                        <div class="flex justify-between items-center border-t border-gray-600 pt-2 mt-2"><span class="font-semibold text-gray-200">Total de Entradas:</span><span class="font-bold text-green-300">${this.formatCurrency(entradasAno)}</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-gray-300">Total de Saídas (Custos):</span><span class="font-bold text-red-400">${this.formatCurrency(custosAno)}</span></div>
+                                        <div class="flex justify-between items-center text-lg border-t-2 border-gray-500 pt-3 mt-3"><span class="font-semibold text-gray-100">Saldo do Ano:</span><span class="font-bold ${balancoAno >= 0 ? 'text-green-400' : 'text-red-400'}">${this.formatCurrency(balancoAno)}</span></div>
+                                    </div>
+                                </div>
+                            </div>`;
+
+                content += `</div>`;
+
+                // Adiciona um pequeno delay para garantir que o canvas exista no DOM antes de criar o gráfico
+                setTimeout(() => {
+                    this.destroyChart(); // Destrói gráfico anterior se existir
+                    const ctx = document.getElementById('caixa-chart');
+                    if (ctx) {
+                        this.chartInstance = new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels: ['Entradas', 'Saídas'],
+                                datasets: [{
+                                    label: 'Balanço do Mês',
+                                    data: [entradasMes, custosMes],
+                                    backgroundColor: [
+                                        'rgba(74, 222, 128, 0.7)', // green-400 com opacidade
+                                        'rgba(248, 113, 113, 0.7)'  // red-400 com opacidade
+                                    ],
+                                    borderColor: [
+                                        'rgba(187, 247, 208, 1)', // green-200
+                                        'rgba(252, 165, 165, 1)'   // red-300
+                                    ],
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: { plugins: { legend: { labels: { color: '#d1d5db' } } } }
+                        });
+                    }
+                }, 100);
+
+                return content;
+            },
+            selectCaixaAno: function(ano) {
+                this.state.selectedCaixaAno = parseInt(ano, 10);
+                this.render('caixa');
+            },
+            selectCaixaMes: function(mes) {
+                this.state.selectedCaixaMes = parseInt(mes, 10);
+                this.render('caixa');
+            },
+            renderCustos: function() {
+                const title = 'Custos do Templo';
+                let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">${title}</h2>`;
+                
+                const editingIndex = this.state.editingCustoIndex;
+                const isEditing = editingIndex !== null;
+                const item = isEditing ? this.db.custos[editingIndex] : {};
+
+                // Formulário de Adição/Edição
                 content += `
                     <div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-200">${isEditing ? 'Editar Custo' : 'Adicionar Novo Custo'}</h3>
-                        <form id="add-custo-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <input type="date" id="custo-data" class="form-input rounded-md shadow-sm" style="color-scheme: dark;" value="${custo.data || ''}" required>
-                            <input type="text" id="custo-obs" placeholder="Observação" class="form-input rounded-md shadow-sm" value="${custo.obs || ''}" required>
-                            <input type="number" id="custo-valor" placeholder="Valor (R$)" step="0.01" min="0.01" class="form-input rounded-md shadow-sm" value="${custo.valor || ''}" required>
+                        <h3 class="text-xl font-semibold mb-4 text-gray-200">${isEditing ? `Editar Custo` : `Adicionar Novo Custo`}</h3>
+                        <form id="add-item-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input type="date" id="item-data" class="form-input" style="color-scheme: dark;" value="${item.data || ''}" required>
+                            <input type="text" id="item-obs" placeholder="Observação" class="form-input" value="${item.obs || ''}" required>
+                            <input type="number" id="item-valor" placeholder="Valor (R$)" step="0.01" min="0.01" class="form-input" value="${item.valor || ''}" required>
                             <div class="md:col-span-3">
-                                <button type="button" class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white" onclick="App.adicionarCusto(${editingIndex})">
-                                    ${isEditing ? 'Atualizar Custo' : 'Adicionar Custo'}
-                                </button>
-                                ${isEditing ? `<button type="button" class="btn-secondary w-full px-4 py-2 rounded-md shadow-lg text-white mt-2" onclick="App.render('custos')">Cancelar Edição</button>` : ''}
+                                <button type="button" class="btn-primary w-full px-4 py-2 rounded-md" onclick="App.adicionarCusto()">${isEditing ? 'Atualizar' : 'Adicionar'}</button>
+                                ${isEditing ? `<button type="button" class="btn-secondary w-full px-4 py-2 rounded-md mt-2" onclick="App.render('custos')">Cancelar Edição</button>` : ''}
                             </div>
                         </form>
                     </div>
                 `;
 
-                // Agrupamento de custos por ano e mês
-                const custosAgrupados = {};
-                this.db.custos.forEach((custo, index) => {
+                // Seção de Registros com Filtros
+                content += `<div class="card-gradient p-6 rounded-lg shadow-xl">`;
+                content += `<h3 class="text-xl font-semibold mb-4 text-gray-200">Registros</h3>`;
+
+                const anosDisponiveis = this.getAnosDisponiveis('custos');
+                const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+                // Filtros Dropdown
+                content += `<div class="flex flex-wrap gap-4 mb-6">`;
+                // Dropdown Ano
+                content += `<div class="flex-1 min-w-[120px]">
+                                <label for="custo-ano-select" class="block text-sm font-medium text-gray-300 mb-1">Ano</label>
+                                <select id="custo-ano-select" class="form-select w-full" onchange="App.selectCustoAno(this.value)">
+                                    ${anosDisponiveis.map(ano => `<option value="${ano}" ${ano === this.state.selectedCustoAno ? 'selected' : ''}>${ano}</option>`).join('')}
+                                </select>
+                            </div>`;
+                // Dropdown Mês
+                content += `<div class="flex-1 min-w-[120px]">
+                                <label for="custo-mes-select" class="block text-sm font-medium text-gray-300 mb-1">Mês</label>
+                                <select id="custo-mes-select" class="form-select w-full" onchange="App.selectCustoMes(this.value)">
+                                    ${nomesMeses.map((nome, index) => `<option value="${index}" ${index === this.state.selectedCustoMes ? 'selected' : ''}>${nome}</option>`).join('')}
+                                </select>
+                            </div>`;
+                content += `</div>`;
+
+                // Lista de Itens Filtrados
+                const custosFiltrados = (this.db.custos || []).filter(custo => {
                     const data = this.parseDate(custo.data);
-                    if (data) {
-                        const ano = data.getFullYear();
-                        const mes = data.getMonth();
-                        if (!custosAgrupados[ano]) custosAgrupados[ano] = {};
-                        if (!custosAgrupados[ano][mes]) custosAgrupados[ano][mes] = [];
-                        custosAgrupados[ano][mes].push({ ...custo, originalIndex: index });
-                    }
-                });
+                    return data && data.getFullYear() === this.state.selectedCustoAno && data.getMonth() === this.state.selectedCustoMes;
+                }).sort((a,b) => App.parseDate(a.data) - App.parseDate(b.data));
 
-                const anos = Object.keys(custosAgrupados).sort((a, b) => b - a);
-
-                // Lista de custos registrados
-                content += `<div class="card-gradient p-6 rounded-lg shadow-xl">
-                                <h3 class="text-xl font-semibold mb-4 text-gray-200">Custos Registrados</h3>
-                `;
-
-                if (anos.length === 0) {
-                    content += `<p class="text-gray-400">Nenhum custo registrado.</p>`;
-                } else {
-                    // Botões de Ano
-                    content += `<div class="flex flex-wrap gap-2 mb-4">`;
-                    anos.forEach(ano => {
-                        const isSelected = ano == this.state.selectedCustoAno; // Usar '==' para comparar string com número se necessário
-                        content += `<button class="px-4 py-2 rounded-md text-white ${isSelected ? 'btn-primary' : 'btn-secondary'}" onclick="App.selectCustoAno('${ano}')">${ano}</button>`;
+                content += `<div class="space-y-3 border-t border-gray-600 pt-4">`;
+                if (custosFiltrados.length > 0) {
+                    custosFiltrados.forEach(item => {
+                        const originalIndex = this.db.custos.indexOf(item);
+                        const statusClass = item.pago ? 'bg-green-600' : 'bg-red-700';
+                        const statusButton = `<button class="flex-grow md:flex-grow-0 px-3 py-1 rounded-md text-white text-xs font-medium ${statusClass}" onclick="App.toggleCustoStatus(${originalIndex})">${item.pago ? 'Pago' : 'Pendente'}</button>`;
+                        
+                        content += `
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-gray-600 rounded-md gap-2 fade-in">
+                                <div class="flex-1">
+                                    <p class="font-semibold text-gray-100">${this.formatDate(item.data)} - ${item.obs}</p>
+                                    <p class="text-sm text-gray-200">${this.formatCurrency(item.valor)}</p>
+                                </div>
+                                <div class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+                                    ${statusButton}
+                                    <button class="text-blue-300 hover:text-blue-200 p-1" onclick="App.render('custos', { editingIndex: ${originalIndex} })" title="Editar">✏️</button>
+                                    <button class="text-red-400 hover:text-red-300 p-1" onclick="App.apagarCusto(${originalIndex})" title="Apagar">🗑️</button>
+                                </div>
+                            </div>`;
                     });
-                    content += `</div>`;
-
-                    // Botões de Mês e Lista de Custos
-                    if (this.state.selectedCustoAno && custosAgrupados[this.state.selectedCustoAno]) {
-                        const anoData = custosAgrupados[this.state.selectedCustoAno];
-                        const meses = Object.keys(anoData).sort((a, b) => a - b);
-                        const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-
-                        // Botões de Mês
-                        content += `<div class="flex flex-wrap gap-2 mb-4 border-t border-gray-700 pt-4 mt-4">`;
-                        meses.forEach(mes => {
-                            const isSelected = mes == this.state.selectedCustoMes;
-                            content += `<button class="px-4 py-2 rounded-md text-white ${isSelected ? 'btn-primary' : 'btn-secondary'}" onclick="App.selectCustoMes('${mes}')">${nomesMeses[mes]}</button>`;
-                        });
-                        content += `</div>`;
-
-                        // Lista de Custos (se um mês for selecionado)
-                        if (this.state.selectedCustoMes !== null && anoData[this.state.selectedCustoMes]) {
-                            content += `<div class="space-y-3 border-t border-gray-700 pt-4 mt-4">`;
-                                anoData[this.state.selectedCustoMes].forEach(custo => {
-                                    const dataCusto = this.parseDate(custo.data);
-                                    const isHistorico = dataCusto && dataCusto < this.dataLimite;
-                                    let statusClass, statusTexto;
-                                    if (isHistorico) {
-                                        statusClass = 'bg-gray-500'; statusTexto = 'Pago (Histórico)';
-                                    } else if (custo.pago) {
-                                        statusClass = 'bg-green-500'; statusTexto = 'Pago';
-                                    } else {
-                                        statusClass = 'bg-red-500'; statusTexto = 'Pendente';
-                                    }
-
-                                    content += `
-                                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-gray-700 rounded-md gap-2">
-                                            <div class="flex-1">
-                                                <p class="font-semibold text-gray-200">${this.formatDate(custo.data)} - ${custo.obs}</p>
-                                                <p class="text-sm text-gray-300">${this.formatCurrency(custo.valor)}</p>
-                                            </div>
-                                            <div class="flex items-center gap-2 w-full md:w-auto">
-                                                <button class="flex-grow md:flex-grow-0 px-3 py-1 rounded-md text-white text-xs font-medium ${statusClass} ${isHistorico ? 'opacity-70 cursor-not-allowed' : ''}"
-                                                        onclick="App.toggleCustoStatus(${custo.originalIndex})" ${isHistorico ? 'disabled' : ''}>
-                                                    ${statusTexto} ${!isHistorico ? '(Mudar)' : ''}
-                                                </button>
-                                                <button class="text-blue-400 hover:text-blue-300 p-1" onclick="App.render('custos', { editingIndex: ${custo.originalIndex} })" title="Editar">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-                                                </button>
-                                                <button class="text-red-500 hover:text-red-400 p-1" onclick="App.apagarCusto(${custo.originalIndex})" title="Apagar">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    `;
-                                });
-                            content += `</div>`;
-                        }
-                    }
+                } else {
+                    content += `<p class="text-gray-400">Nenhum custo registrado para ${nomesMeses[this.state.selectedCustoMes]} de ${this.state.selectedCustoAno}.</p>`;
                 }
-                content += `</div>`; // Fim do card
-
+                content += `</div>`;
+                content += `</div>`; // Fecha o card-gradient dos registros
                 return content;
             },
-
-            /**
-             * Adiciona ou atualiza um custo na base de dados.
-             */
-            adicionarCusto: function(editingIndex = null) {
-                const data = document.getElementById('custo-data').value;
-                const obs = document.getElementById('custo-obs').value;
-                const valor = parseFloat(document.getElementById('custo-valor').value);
-
+            adicionarCusto: function() {
+                const data = document.getElementById('item-data').value;
+                const obs = document.getElementById('item-obs').value;
+                const valor = parseFloat(document.getElementById('item-valor').value);
+                const editingIndex = this.state.editingCustoIndex;
+                
                 if (data && obs && valor > 0) {
+                    const newItem = { data, obs, valor };
                     if (editingIndex !== null) {
-                        const custoExistente = this.db.custos[editingIndex];
-                        custoExistente.data = data;
-                        custoExistente.obs = obs;
-                        custoExistente.valor = valor;
+                        newItem.pago = this.db.custos[editingIndex].pago; // Mantém o status de pagamento
+                        this.db.custos[editingIndex] = newItem;
                     } else {
-                        this.db.custos.push({ data, obs, valor, pago: false });
+                        newItem.pago = false; // Novos custos são pendentes por padrão
+                        this.db.custos.unshift(newItem);
                     }
                     this.saveDB();
+                    // Atualiza o estado para o período do item adicionado/editado
+                    const dataObj = this.parseDate(data);
+                    this.state.selectedCustoAno = dataObj.getFullYear();
+                    this.state.selectedCustoMes = dataObj.getMonth();
                     this.render('custos');
                 } else {
-                    alert("Por favor, preencha todos os campos do custo.");
+                    alert("Por favor, preencha todos os campos.");
                 }
             },
-
-            /**
-             * Apaga um custo.
-             */
             apagarCusto: function(index) {
-                if (confirm('Tem a certeza que quer apagar este custo?')) {
+                if (confirm(`Tem a certeza que quer apagar este custo?`)) {
                     this.db.custos.splice(index, 1);
                     this.saveDB();
                     this.render('custos');
                 }
             },
-
-            /**
-             * Alterna o status de pagamento de um custo.
-             */
             toggleCustoStatus: function(index) {
                 const custo = this.db.custos[index];
                 if (custo) {
                     custo.pago = !custo.pago;
                     this.saveDB();
                 }
-                this.render('custos'); // Redesenha
+                this.render('custos');
             },
-
-            /**
-             * Seleciona um ano para filtrar os custos e re-renderiza.
-             */
             selectCustoAno: function(ano) {
-                // Se clicar no mesmo ano, deseleciona.
-                this.state.selectedCustoAno = this.state.selectedCustoAno == ano ? null : ano;
-                this.state.selectedCustoMes = null; // Reseta o mês ao trocar de ano
+                this.state.selectedCustoAno = parseInt(ano);
                 this.render('custos');
             },
-
-            /**
-             * Seleciona um mês para filtrar os custos e re-renderiza.
-             */
             selectCustoMes: function(mes) {
-                // Se clicar no mesmo mês, deseleciona.
-                this.state.selectedCustoMes = this.state.selectedCustoMes == mes ? null : mes;
+                this.state.selectedCustoMes = parseInt(mes);
                 this.render('custos');
             },
-
-            // 5.1. SEÇÃO: CONTRIBUIÇÕES
-
-            /**
-             * Renderiza a página de contribuições voluntárias.
-             */
-            renderContribuicoes: function(data = {}) {
-                const editingIndex = data.editingIndex !== undefined ? data.editingIndex : null;
-                let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Contribuições Voluntárias</h2>`;
-                const isEditing = editingIndex !== null;
-                const contrib = isEditing ? this.db.contribuicoes[editingIndex] : {};
+            renderContribuicoes: function() {
+                const title = 'Contribuições Voluntárias';
+                let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">${title}</h2>`;
                 
-                // Formulário para adicionar/editar contribuição
+                const editingIndex = this.state.editingContribIndex;
+                const isEditing = editingIndex !== null;
+                const item = isEditing ? this.db.contribuicoes[editingIndex] : {};
+
+                // Formulário de Adição/Edição
                 content += `
                     <div class="card-gradient p-6 rounded-lg shadow-xl mb-6">
-                        <h3 class="text-xl font-semibold mb-4 text-gray-200">${isEditing ? 'Editar Contribuição' : 'Adicionar Nova Contribuição'}</h3>
+                        <h3 class="text-xl font-semibold mb-4 text-gray-200">${isEditing ? `Editar Contribuição` : `Adicionar Nova Contribuição`}</h3>
                         <form id="add-contrib-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <input type="date" id="contrib-data" class="form-input rounded-md shadow-sm" style="color-scheme: dark;" value="${contrib.data || ''}" required>
-                            <input type="text" id="contrib-obs" placeholder="Observação" class="form-input rounded-md shadow-sm" value="${contrib.obs || ''}" required>
-                            <input type="number" id="contrib-valor" placeholder="Valor (R$)" step="0.01" min="0.01" class="form-input rounded-md shadow-sm" value="${contrib.valor || ''}" required>
+                            <input type="date" id="contrib-data" class="form-input" style="color-scheme: dark;" value="${item.data || ''}" required>
+                            <input type="text" id="contrib-obs" placeholder="Observação" class="form-input" value="${item.obs || ''}" required>
+                            <input type="number" id="contrib-valor" placeholder="Valor (R$)" step="0.01" min="0.01" class="form-input" value="${item.valor || ''}" required>
                             <div class="md:col-span-3">
-                                <button type="button" class="btn-primary w-full px-4 py-2 rounded-md shadow-lg text-white" onclick="App.adicionarContribuicao(${editingIndex})">
-                                    ${isEditing ? 'Atualizar Contribuição' : 'Adicionar Contribuição'}
-                                </button>
-                                ${isEditing ? `<button type="button" class="btn-secondary w-full px-4 py-2 rounded-md shadow-lg text-white mt-2" onclick="App.render('contribuicoes')">Cancelar Edição</button>` : ''}
+                                <button type="button" class="btn-primary w-full px-4 py-2 rounded-md" onclick="App.adicionarContribuicao()">${isEditing ? 'Atualizar' : 'Adicionar'}</button>
+                                ${isEditing ? `<button type="button" class="btn-secondary w-full px-4 py-2 rounded-md mt-2" onclick="App.render('contribuicoes')">Cancelar Edição</button>` : ''}
                             </div>
                         </form>
                     </div>
                 `;
 
-                // Agrupamento de contribuições por ano e mês
-                const contribsAgrupadas = {};
-                this.db.contribuicoes.forEach((contrib, index) => {
+                // Seção de Registros com Filtros
+                content += `<div class="card-gradient p-6 rounded-lg shadow-xl">`;
+                content += `<h3 class="text-xl font-semibold mb-4 text-gray-200">Registros</h3>`;
+
+                const anosDisponiveis = this.getAnosDisponiveis('contribuicoes');
+                const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+                // Filtros Dropdown
+                content += `<div class="flex flex-wrap gap-4 mb-6">`;
+                // Dropdown Ano
+                content += `<div class="flex-1 min-w-[120px]">
+                                <label for="contrib-ano-select" class="block text-sm font-medium text-gray-300 mb-1">Ano</label>
+                                <select id="contrib-ano-select" class="form-select w-full" onchange="App.selectContribAno(this.value)">
+                                    ${anosDisponiveis.map(ano => `<option value="${ano}" ${ano === this.state.selectedContribAno ? 'selected' : ''}>${ano}</option>`).join('')}
+                                </select>
+                            </div>`;
+                // Dropdown Mês
+                content += `<div class="flex-1 min-w-[120px]">
+                                <label for="contrib-mes-select" class="block text-sm font-medium text-gray-300 mb-1">Mês</label>
+                                <select id="contrib-mes-select" class="form-select w-full" onchange="App.selectContribMes(this.value)">
+                                    ${nomesMeses.map((nome, index) => `<option value="${index}" ${index === this.state.selectedContribMes ? 'selected' : ''}>${nome}</option>`).join('')}
+                                </select>
+                            </div>`;
+                content += `</div>`;
+
+                // Lista de Itens Filtrados
+                const contribsFiltradas = (this.db.contribuicoes || []).filter(contrib => {
                     const data = this.parseDate(contrib.data);
-                    if (data) {
-                        const ano = data.getFullYear();
-                        const mes = data.getMonth();
-                        if (!contribsAgrupadas[ano]) contribsAgrupadas[ano] = {};
-                        if (!contribsAgrupadas[ano][mes]) contribsAgrupadas[ano][mes] = [];
-                        contribsAgrupadas[ano][mes].push({ ...contrib, originalIndex: index });
-                    }
-                });
+                    return data && data.getFullYear() === this.state.selectedContribAno && data.getMonth() === this.state.selectedContribMes;
+                }).sort((a,b) => App.parseDate(a.data) - App.parseDate(b.data));
 
-                const anos = Object.keys(contribsAgrupadas).sort((a, b) => b - a);
-
-                // Lista de contribuições registradas
-                content += `<div class="card-gradient p-6 rounded-lg shadow-xl">
-                                <h3 class="text-xl font-semibold mb-4 text-gray-200">Contribuições Registradas</h3>
-                `;
-
-                if (anos.length === 0) {
-                    content += `<p class="text-gray-400">Nenhuma contribuição registrada.</p>`;
-                } else {
-                    // Botões de Ano
-                    content += `<div class="flex flex-wrap gap-2 mb-4">`;
-                    anos.forEach(ano => {
-                        const isSelected = ano == this.state.selectedContribAno;
-                        content += `<button class="px-4 py-2 rounded-md text-white ${isSelected ? 'btn-primary' : 'btn-secondary'}" onclick="App.selectContribAno('${ano}')">${ano}</button>`;
+                content += `<div class="space-y-3 border-t border-gray-600 pt-4">`;
+                if (contribsFiltradas.length > 0) {
+                    contribsFiltradas.forEach(item => {
+                        const originalIndex = this.db.contribuicoes.indexOf(item);
+                        content += `
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-gray-600 rounded-md gap-2 fade-in">
+                                <div class="flex-1">
+                                    <p class="font-semibold text-gray-100">${this.formatDate(item.data)} - ${item.obs}</p>
+                                    <p class="text-sm text-gray-200">${this.formatCurrency(item.valor)}</p>
+                                </div>
+                                <div class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+                                    <button class="text-blue-300 hover:text-blue-200 p-1" onclick="App.render('contribuicoes', { editingIndex: ${originalIndex} })" title="Editar">✏️</button>
+                                    <button class="text-red-400 hover:text-red-300 p-1" onclick="App.apagarContribuicao(${originalIndex})" title="Apagar">🗑️</button>
+                                </div>
+                            </div>`;
                     });
-                    content += `</div>`;
-
-                    // Botões de Mês e Lista de Contribuições
-                    if (this.state.selectedContribAno && contribsAgrupadas[this.state.selectedContribAno]) {
-                        const anoData = contribsAgrupadas[this.state.selectedContribAno];
-                        const meses = Object.keys(anoData).sort((a, b) => a - b);
-                        const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-
-                        // Botões de Mês
-                        content += `<div class="flex flex-wrap gap-2 mb-4 border-t border-gray-700 pt-4 mt-4">`;
-                        meses.forEach(mes => {
-                            const isSelected = mes == this.state.selectedContribMes;
-                            content += `<button class="px-4 py-2 rounded-md text-white ${isSelected ? 'btn-primary' : 'btn-secondary'}" onclick="App.selectContribMes('${mes}')">${nomesMeses[mes]}</button>`;
-                        });
-                        content += `</div>`;
-
-                        // Lista de Contribuições (se um mês for selecionado)
-                        if (this.state.selectedContribMes !== null && anoData[this.state.selectedContribMes]) {
-                            content += `<div class="space-y-3 border-t border-gray-700 pt-4 mt-4">`;
-                                anoData[this.state.selectedContribMes].forEach(c => {
-                                    content += `
-                                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-gray-700 rounded-md gap-2">
-                                            <div class="flex-1">
-                                                <p class="font-semibold text-gray-200">${this.formatDate(c.data)} - ${c.obs}</p>
-                                                <p class="text-sm text-green-400">${this.formatCurrency(c.valor)}</p>
-                                            </div>
-                                            <div class="flex gap-2">
-                                                <button class="text-blue-400 hover:text-blue-300 p-1" onclick="App.render('contribuicoes', { editingIndex: ${c.originalIndex} })" title="Editar">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-                                                </button>
-                                                <button class="text-red-500 hover:text-red-400 p-1" onclick="App.apagarContribuicao(${c.originalIndex})" title="Apagar">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    `;
-                                });
-                            content += `</div>`;
-                        }
-                    }
+                } else {
+                    content += `<p class="text-gray-400">Nenhuma contribuição registrada para ${nomesMeses[this.state.selectedContribMes]} de ${this.state.selectedContribAno}.</p>`;
                 }
-                content += `</div>`; // Fim do card
-
+                content += `</div>`;
+                content += `</div>`;
                 return content;
             },
-
-            /**
-             * Adiciona ou atualiza uma contribuição.
-             */
-            adicionarContribuicao: function(editingIndex = null) {
+            adicionarContribuicao: function() {
                 const data = document.getElementById('contrib-data').value;
                 const obs = document.getElementById('contrib-obs').value;
                 const valor = parseFloat(document.getElementById('contrib-valor').value);
-
+                const editingIndex = this.state.editingContribIndex;
+                
                 if (data && obs && valor > 0) {
-                    const novaContrib = { data, obs, valor };
+                    const newItem = { data, obs, valor };
                     if (editingIndex !== null) {
-                        this.db.contribuicoes[editingIndex] = novaContrib;
+                        this.db.contribuicoes[editingIndex] = newItem;
                     } else {
-                        this.db.contribuicoes.push(novaContrib);
+                        this.db.contribuicoes.unshift(newItem);
                     }
                     this.saveDB();
+                    const dataObj = this.parseDate(data);
+                    this.state.selectedContribAno = dataObj.getFullYear();
+                    this.state.selectedContribMes = dataObj.getMonth();
                     this.render('contribuicoes');
                 } else {
-                    alert("Por favor, preencha todos os campos da contribuição.");
+                    alert("Por favor, preencha todos os campos.");
                 }
             },
-
-            /**
-             * Apaga uma contribuição.
-             */
             apagarContribuicao: function(index) {
-                if (confirm('Tem a certeza que quer apagar esta contribuição?')) {
+                if (confirm(`Tem a certeza que quer apagar esta contribuição?`)) {
                     this.db.contribuicoes.splice(index, 1);
                     this.saveDB();
                     this.render('contribuicoes');
                 }
             },
-
-            /**
-             * Seleciona um ano para filtrar as contribuições e re-renderiza.
-             */
             selectContribAno: function(ano) {
-                // Se clicar no mesmo ano, deseleciona.
-                this.state.selectedContribAno = this.state.selectedContribAno == ano ? null : ano;
-                this.state.selectedContribMes = null; // Reseta o mês ao trocar de ano
+                this.state.selectedContribAno = parseInt(ano);
                 this.render('contribuicoes');
             },
-
-            /**
-             * Seleciona um mês para filtrar as contribuições e re-renderiza.
-             */
             selectContribMes: function(mes) {
-                // Se clicar no mesmo mês, deseleciona.
-                this.state.selectedContribMes = this.state.selectedContribMes == mes ? null : mes;
+                this.state.selectedContribMes = parseInt(mes);
                 this.render('contribuicoes');
             },
-
+            
             // 6. SEÇÃO: INADIMPLÊNCIA
-
-            /**
-             * Renderiza o relatório de inadimplência.
-             */
             renderInadimplencia: function() {
                 let content = `<h2 class="text-3xl font-semibold mb-6 text-red-400">Relatório de Inadimplência</h2>`;
                 content += '<div class="card-gradient p-6 rounded-lg shadow-xl">';
                 
                 let inadimplentesEncontrados = false;
-                let totalDevido = 0;
-
-                const agora = new Date();
-                const anoAtual = agora.getFullYear();
-                const mesAtual = agora.getMonth();
+                let totalGeralDevido = 0;
+                const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
                 content += '<div class="space-y-6">';
 
-                this.db.adeptos.forEach(adepto => {
-                    if (adepto.mensalidade > 0) {
-                        let mesesDevidos = [];
-                        // Itera de 2024 até o ano atual
-                        for (let ano = 2024; ano <= anoAtual; ano++) {
-                            const pagamentosDoAno = (adepto.pagamentos && adepto.pagamentos[ano]) ? adepto.pagamentos[ano] : [];
-                            const limiteMes = (ano < anoAtual) ? 11 : mesAtual - 1; // Mês anterior ao atual
-
-                            for (let mes = 0; mes <= limiteMes; mes++) {
-                                if (!pagamentosDoAno.includes(mes)) {
-                                    mesesDevidos.push({ ano, mes });
+                this.db.adeptos.forEach((adepto, index) => {
+                    const resumo = this.calcularResumoFinanceiro(index);
+                    if (resumo.saldo < 0) {
+                        inadimplentesEncontrados = true;
+                        totalGeralDevido += resumo.saldo;
+                        
+                        let detalhesHTML = '<ul class="mt-2 space-y-2 text-sm text-gray-300 border-t border-gray-600 pt-3">';
+                        
+                        // Mensalidades
+                        for (const ano in adepto.financeiro.mensalidades) {
+                            for (const mes in adepto.financeiro.mensalidades[ano] || {}) {
+                                const m = adepto.financeiro.mensalidades[ano][mes];
+                                if (m.status === 'pendente') {
+                                    detalhesHTML += `<li>• Mensalidade de ${nomesMeses[mes]} de ${ano} - <span class="text-red-400">${this.formatCurrency(this.config.valorMensalidade)}</span></li>`;
+                                } else if (m.status === 'parcial') {
+                                    const devido = this.config.valorMensalidade - m.valorPago;
+                                    detalhesHTML += `<li>• Mensalidade de ${nomesMeses[mes]} de ${ano} (Parcial) - <span class="text-red-400">${this.formatCurrency(devido)}</span></li>`;
                                 }
                             }
                         }
 
-                        if (mesesDevidos.length > 0) {
-                            inadimplentesEncontrados = true;
-                            const valorDevido = mesesDevidos.length * adepto.mensalidade;
-                            totalDevido += valorDevido;
-                            
-                            content += `
-                                <div class="p-4 bg-gray-700 rounded-md">
-                                    <div class="flex justify-between items-center">
-                                        <h4 class="text-lg font-semibold text-gray-200">${adepto.nome}</h4>
-                                        <span class="font-bold text-red-400">${this.formatCurrency(valorDevido)}</span>
+                        // Débitos e Compras
+                        (adepto.financeiro.debitos || []).forEach(d => {
+                            if (d.status === 'pendente') {
+                                detalhesHTML += `<li>• ${d.obs} em ${this.formatDate(d.data)} - <span class="text-red-400">${this.formatCurrency(d.valor)}</span></li>`;
+                            } else if (d.status === 'parcial') {
+                                const devido = d.valor - d.valorPago;
+                                detalhesHTML += `<li>• ${d.obs} em ${this.formatDate(d.data)} (Parcial) - <span class="text-red-400">${this.formatCurrency(devido)}</span></li>`;
+                            }
+                        });
+
+                        detalhesHTML += '</ul>';
+
+                        content += `
+                            <details class="bg-gray-700 rounded-md group cursor-pointer">
+                                <summary class="flex justify-between items-center p-4 list-none [&::-webkit-details-marker]:hidden">
+                                    <h4 class="text-lg font-semibold text-gray-200 group-open:text-red-400 transition-colors">${adepto.nome}</h4>
+                                    <div class="flex items-center gap-4">
+                                        <span class="font-bold text-red-400">${this.formatCurrency(resumo.saldo)}</span>
+                                        <span class="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
                                     </div>
-                                    <p class="text-sm text-gray-400 mt-1">Meses em atraso: ${mesesDevidos.length}</p>
+                                </summary>
+                                <div class="px-4 pb-4">
+                                    ${detalhesHTML}
                                 </div>
-                            `;
-                        }
+                            </details>
+                        `;
                     }
                 });
 
@@ -1072,12 +1763,11 @@
                     content += '<p class="text-gray-400">Nenhum adepto inadimplente encontrado.</p>';
                 }
 
-                // Rodapé com total
                 content += `
                     <footer class="border-t border-gray-700 mt-6 pt-4">
                         <div class="flex justify-between items-center text-lg">
                             <span class="text-gray-300">Total Geral Devido:</span>
-                            <span class="font-bold text-red-500">${this.formatCurrency(totalDevido)}</span>
+                            <span class="font-bold text-red-500">${this.formatCurrency(totalGeralDevido)}</span>
                         </div>
                     </footer>
                 `;
@@ -1087,36 +1777,162 @@
             },
 
             // 7. FUNÇÕES UTILITÁRIAS
-
-            /**
-             * Formata um número como moeda (BRL).
-             */
-            formatCurrency: function(value) {
-                return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
-            },
-
-            /**
-             * Formata uma data (string YYYY-MM-DD) para DD/MM/YYYY.
-             */
+            formatCurrency: function(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0); },
             formatDate: function(dateString) {
                 if (!dateString) return '';
                 const [year, month, day] = dateString.split('-');
                 return `${day}/${month}/${year}`;
             },
-
-            /**
-             * Converte uma string de data (YYYY-MM-DD) para um objeto Date.
-             */
             parseDate: function(dateString) {
                 if (!dateString) return null;
                 const parts = dateString.split('-');
-                // new Date(year, monthIndex, day) - monthIndex é 0-11
                 return new Date(parts[0], parts[1] - 1, parts[2]);
+            },
+            getAnosDisponiveis: function(dbKey = null) {
+                const anos = new Set();
+                if (dbKey === 'custos' || !dbKey) {
+                    (this.db.custos || []).forEach(c => anos.add(this.parseDate(c.data)?.getFullYear()));
+                }
+                if (dbKey === 'contribuicoes' || !dbKey) {
+                    (this.db.contribuicoes || []).forEach(c => anos.add(this.parseDate(c.data)?.getFullYear()));
+                }
+                if (!dbKey) { // Se não for especificado, pega de todos
+                    this.db.adeptos.forEach(a => {
+                        if (a.financeiro && a.financeiro.mensalidades) {
+                            Object.keys(a.financeiro.mensalidades).forEach(ano => anos.add(parseInt(ano)));
+                        }
+                        if (a.financeiro && a.financeiro.debitos) {
+                            (a.financeiro.debitos || []).forEach(d => anos.add(this.parseDate(d.data)?.getFullYear()));
+                        }
+                    });
+                }
+                anos.delete(NaN); anos.delete(undefined); // Remove valores inválidos
+                const anosArray = Array.from(anos).sort((a, b) => b - a);
+                if (anosArray.length === 0) anosArray.push(new Date().getFullYear());
+                return anosArray;
+            },
+
+            exportAdeptoPDF: function(index) {
+                const adepto = this.db.adeptos[index];
+                const doc = new jsPDF();
+                
+                doc.setFontSize(18);
+                doc.text("Ficha Cadastral de Adepto", 105, 20, { align: 'center' });
+
+                const addField = (label, value) => {
+                    return [label, value || 'Não informado'];
+                };
+
+                const body = [
+                    addField("Status", adepto.ativo !== false ? "Ativo" : "Inativo"),
+                    addField("Nome Completo", adepto.nome),
+                    addField("Data de Nascimento", this.formatDate(adepto.dataNascimento)),
+                    addField("Data de Entrada no TCAPB", this.formatDate(adepto.dataEntradaTQPB)),
+                    addField("Estado Civil", adepto.estadoCivil),
+                    addField("Endereço", adepto.endereco),
+                    addField("Complemento", adepto.complemento),
+                    addField("E-mail", adepto.email),
+                    addField("Rede Social", `${adepto.redeSocialTipo}: ${adepto.redeSocialUser}`),
+                    addField("Telefone", adepto.telefone),
+                    addField("Atividade Profissional", adepto.atividadeProfissional),
+                    addField("Mestre Exu", adepto.mestreExu),
+                    addField("Mestra Pombagira", adepto.mestraPombagira),
+                    addField("Como soube dos mestres", adepto.comoSoube),
+                    addField("Obrigações realizadas", adepto.obrigacoesRealizadas),
+                    addField("Status de Batismo", adepto.statusBatismo),
+                ];
+
+                if (adepto.statusBatismo === 'Batizado(a)') {
+                    body.push(addField("Data de Batismo", this.formatDate(adepto.dataBatismo)));
+                }
+                body.push(addField("Alergias/Doenças", adepto.alergiaDoenca));
+                body.push(addField("Uso de Medicação/Drogas", adepto.medicacaoDrogas));
+
+                doc.autoTable({
+                    startY: 30,
+                    head: [['Campo', 'Informação']],
+                    body: body,
+                    theme: 'grid',
+                    headStyles: { fillColor: [239, 68, 68] }, // Vermelho
+                    styles: { cellPadding: 2, fontSize: 10 },
+                    columnStyles: { 0: { cellWidth: 50, fontStyle: 'bold' } }
+                });
+
+                let finalY = doc.lastAutoTable.finalY + 20;
+                doc.text("________________________________________", 105, finalY, { align: 'center' });
+                finalY += 5;
+                doc.text("Assinatura do Adepto", 105, finalY, { align: 'center' });
+
+                doc.save(`Ficha_Cadastral_${adepto.nome.replace(/ /g, '_')}.pdf`);
+            },
+
+            exportBackup: function() {
+                if (!confirm('Deseja criar um backup de todos os dados da aplicação em formato XLSX (Excel)?')) {
+                    return;
+                }
+
+                const wb = XLSX.utils.book_new();
+
+                // 1. Aba de Adeptos (Cadastro)
+                const adeptosCad = this.db.adeptos.map(a => ({
+                    ID: a.id, Status: a.ativo !== false ? 'Ativo' : 'Inativo', Nome: a.nome, 'Data Entrada': a.dataEntradaTQPB, 'Data Nasc': a.dataNascimento,
+                    'Estado Civil': a.estadoCivil, Endereco: a.endereco, Complemento: a.complemento, Email: a.email,
+                    Telefone: a.telefone, 'Rede Social': `${a.redeSocialTipo} ${a.redeSocialUser}`, Profissao: a.atividadeProfissional,
+                    'Mestre Exu': a.mestreExu, 'Mestra Pombagira': a.mestraPombagira, 'Como Soube': a.comoSoube,
+                    Obrigacoes: a.obrigacoesRealizadas, Batismo: a.statusBatismo, 'Data Batismo': a.dataBatismo,
+                    Alergias: a.alergiaDoenca, Medicacao: a.medicacaoDrogas
+                }));
+                const wsAdeptos = XLSX.utils.json_to_sheet(adeptosCad);
+                XLSX.utils.book_append_sheet(wb, wsAdeptos, "Adeptos");
+
+                // 2. Aba Financeiro (Mensalidades e Débitos)
+                const financeiroData = [];
+                this.db.adeptos.forEach(a => {
+                    // Mensalidades
+                    for (const ano in a.financeiro.mensalidades) {
+                        for (const mes in a.financeiro.mensalidades[ano]) {
+                            const m = a.financeiro.mensalidades[ano][mes];
+                            if (m.status !== 'desativado' && m.status !== 'futuro') {
+                                financeiroData.unshift({
+                                    Adepto: a.nome, Tipo: 'Mensalidade', Data: `${parseInt(mes)+1}/${ano}`,
+                                    Descricao: `Mensalidade ${mes}/${ano}`, Status: m.status,
+                                    'Valor Total': this.config.valorMensalidade, 'Valor Pago': m.valorPago || 0
+                                });
+                            }
+                        }
+                    }
+                    // Débitos
+                    (a.financeiro.debitos || []).forEach(d => {
+                        financeiroData.unshift({
+                            Adepto: a.nome, Tipo: 'Debito', Data: d.data, Descricao: d.obs,
+                            Status: d.status, 'Valor Total': d.valor, 'Valor Pago': d.valorPago || 0
+                        });
+                    });
+                });
+                const wsFinanceiro = XLSX.utils.json_to_sheet(financeiroData);
+                XLSX.utils.book_append_sheet(wb, wsFinanceiro, "Financeiro");
+
+                // 3. Aba de Custos
+                const wsCustos = XLSX.utils.json_to_sheet(this.db.custos || []);
+                XLSX.utils.book_append_sheet(wb, wsCustos, "Custos");
+
+                // 4. Aba de Contribuições
+                const wsContribuicoes = XLSX.utils.json_to_sheet(this.db.contribuicoes || []);
+                XLSX.utils.book_append_sheet(wb, wsContribuicoes, "Contribuicoes");
+
+                // Gerar e baixar o arquivo
+                XLSX.writeFile(wb, "tcapb_backup.xlsx");
+            },
+
+            resetData: function() {
+                if (confirm('ATENÇÃO: Isso apagará os dados salvos no navegador e recarregará a lista original de adeptos do código. Deseja continuar?')) {
+                    localStorage.removeItem('tqpb_db');
+                    location.reload();
+                }
             }
         };
 
-        // Inicializa a aplicação quando o DOM estiver pronto
-        document.addEventListener('DOMContentLoaded', () => App.init()); // A inicialização agora cuida do login
+        document.addEventListener('DOMContentLoaded', () => App.init());
     </script>
 </body>
 </html>
