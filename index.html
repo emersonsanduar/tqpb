@@ -828,6 +828,10 @@
                 }
 
                 this.normalizeDB();
+                const localAdminPhoto = localStorage.getItem('tcapb_admin_photo');
+                if (!this.db.adminPhoto && localAdminPhoto) {
+                    this.db.adminPhoto = localAdminPhoto;
+                }
                 this.isLoadingRemoteDB = false;
 
                 if (this.isRemoteSyncEnabled) {
