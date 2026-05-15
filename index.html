@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* Estilos personalizados */
         :root {
@@ -535,8 +536,14 @@
                 password: 'cova666',
                 valorMensalidade: 150.00,
                 initialDataVersion: '2026-05-15-cadastros-financeiro-v2',
+                supabaseUrl: 'https://qgxkearokcvfnrjesgtf.supabase.co',
+                supabaseAnonKey: 'sb_publishable_YIte6zc3C4q5uN4IggMHVw__F1wHQgl',
+                supabaseStateId: 'povo-do-buraco-db',
             },
             db: null, // Onde os dados serão mantidos em memória
+            supabaseClient: null,
+            isRemoteSyncEnabled: false,
+            isLoadingRemoteDB: false,
             state: { // Estado volátil da UI
                 currentPage: 'home',
                 adeptosFilter: true,
@@ -580,12 +587,13 @@
                 document.getElementById('app').style.display = 'none';
                 document.getElementById('main-nav').style.display = 'none';
             },
-            showApp: function() {
+            showApp: async function() {
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
                 document.getElementById('main-nav').style.display = 'block';
                 
-                this.loadDB();
+                await this.loadDB();
+                this.loadAdminPhoto();
                 const hash = location.hash.slice(1);
                 const [page, ...params] = hash.split('/');
                 
@@ -657,6 +665,10 @@
                         
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                         localStorage.setItem('tcapb_admin_photo', dataUrl);
+                        if (App.db) {
+                            App.db.adminPhoto = dataUrl;
+                            App.saveDB();
+                        }
                         App.loadAdminPhoto();
                     };
                     img.src = e.target.result;
@@ -665,7 +677,7 @@
             },
 
             loadAdminPhoto: function() {
-                const photoData = localStorage.getItem('tcapb_admin_photo');
+                const photoData = this.db?.adminPhoto || localStorage.getItem('tcapb_admin_photo');
                 const imgEls = document.querySelectorAll('.admin-photo-img');
                 const placeholderEls = document.querySelectorAll('.admin-photo-placeholder');
                 
@@ -718,13 +730,63 @@
             },
 
             // 1. GERENCIAMENTO DE DADOS (DB)
-            loadDB: function() {
+            setupSupabase: function() {
+                const hasConfig = this.config.supabaseUrl && this.config.supabaseAnonKey;
+                if (!hasConfig || !window.supabase?.createClient) {
+                    this.isRemoteSyncEnabled = false;
+                    return false;
+                }
+
+                if (!this.supabaseClient) {
+                    this.supabaseClient = window.supabase.createClient(this.config.supabaseUrl, this.config.supabaseAnonKey);
+                }
+                this.isRemoteSyncEnabled = true;
+                return true;
+            },
+
+            loadLocalDB: function() {
                 const dbJson = localStorage.getItem('tqpb_db');
                 if (dbJson) {
                     this.db = JSON.parse(dbJson);
                 } else {
                     this.db = { adeptos: [], custos: [], contribuicoes: [] };
                 }
+            },
+
+            loadRemoteDB: async function() {
+                if (!this.setupSupabase()) return null;
+
+                const { data, error } = await this.supabaseClient
+                    .from('app_state')
+                    .select('data')
+                    .eq('id', this.config.supabaseStateId)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error('Erro ao carregar dados do Supabase:', error);
+                    return null;
+                }
+
+                return data?.data || null;
+            },
+
+            saveRemoteDB: async function() {
+                if (!this.isRemoteSyncEnabled || !this.supabaseClient || !this.db) return;
+
+                const { error } = await this.supabaseClient
+                    .from('app_state')
+                    .upsert({
+                        id: this.config.supabaseStateId,
+                        data: this.db,
+                        updated_at: new Date().toISOString(),
+                    }, { onConflict: 'id' });
+
+                if (error) {
+                    console.error('Erro ao salvar dados no Supabase:', error);
+                }
+            },
+
+            normalizeDB: function() {
                 if (!this.db.custos) this.db.custos = [];
                 if (!this.db.contribuicoes) this.db.contribuicoes = [];
 
@@ -754,8 +816,30 @@
 
                 if (!this.db.adeptos) this.db.adeptos = [];
             },
+
+            loadDB: async function() {
+                this.isLoadingRemoteDB = true;
+                this.loadLocalDB();
+
+                const remoteDB = await this.loadRemoteDB();
+                if (remoteDB) {
+                    this.db = remoteDB;
+                    localStorage.setItem('tqpb_db', JSON.stringify(this.db));
+                }
+
+                this.normalizeDB();
+                this.isLoadingRemoteDB = false;
+
+                if (this.isRemoteSyncEnabled) {
+                    await this.saveRemoteDB();
+                }
+            },
+
             saveDB: function() {
                 localStorage.setItem('tqpb_db', JSON.stringify(this.db));
+                if (!this.isLoadingRemoteDB) {
+                    this.saveRemoteDB();
+                }
             },
             getInitialData: function() {
                 const csv = "\"Nome\",\"Data Entrada\",\"Data Nasc\",\"Estado Civil\",\"Endereco\",\"Complemento\",\"Email\",\"Telefone\",\"Rede Social\",\"Profissao\",\"Mestre Exu\",\"Mestra Pombagira\",\"Como Soube\",\"Obrigacoes\",\"Batismo\",\"Data Batismo\",\"Alergias\",\"Medicacao\"\n\"Alef Oliveira sousa\",\"2024-05-14\",\"1994-05-22\",\"Casado\",\"Av claricinda alves de rezende 1050 Apt201 BL01\",\"\",\"Alefoliveiraeng@yahoo.com.br\",\"+5534998406461\",\"Instagram @alefoliveira.34\",\"Empresario\",\"Tranca rua da encruzilhada \",\"Maria padilha\",\"Através de seu Rei\",\"Nao realizei\",\"Batizado(a)\",\"2025-11-02\",\"Nao\",\"Medicações (carvedilol,rosuvastatina,AAs,Enalapril)\"\n\"Bruna Silva Vieira\",\"2025-04-26\",\"1991-12-06\",\"União estável \",\"Campos Sales, 622, Abadia, Uberaba, Minas Gerais, Brasil.\",\"\",\"bubu.uai@hotmail.com\",\"34 998286160\",\"Instagram @bubuuvieira\",\"Autônomo - Personal Training \",\"Gira Mundo\",\"Maria Padilha \",\"Seu Rei das 7 Encruzilhadas me informou no dia da festa do Seu Exu do Lodo de forma bastante interessante, ele disse: “Você sabe quem é seu Exu? Vou te falar, mas o que eu ganho em troca?”(Risada boa do Seu Rei) Enquanto eu pensava no que eu poderia dar em troca ele me disse que era Seu Gira Mundo. \nQuanto a minha Senhora, Dona Maria Padilha, foi meio a uma festa aonde também Seu Rei me informou sobre ela. \",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Não \",\"Não \"\n\"Bruno Libanore\",\"2024-01-21\",\"1998-05-04\",\"Solteiro\",\"Felipe Dos Santos n180 ap502, Nossa Senhora da Abadia - Uberaba-Mg Brasil\",\"\",\"bruno.libanore@outlook.com\",\"(14) 997103173\",\"Instagram @brunolibanore\",\"Fisioterapeuta \",\"Exu 7 Catacumbas\",\"Pombagira Rosa Caveira \",\"Sempre foram eles desde a umbanda, confirmação no oráculo. \",\"Batismo, mini vultos \",\"Batizado(a)\",\"2024-07-27\",\"Não tenho \",\"Não \"\n\"Cristiellen Elisa Silva Batista \",\"2025-06-03\",\"1998-10-17\",\"Divorciada \",\"Rua quirino Luiz da costa 147 Estados Unidos \",\"\",\"Criiselisa20@gmail.com \",\"34984244893\",\"Instagram Criiselisa\",\"estudante \",\"Exu sr Lúcifer \",\"Pomba gira Maria Quitéria \",\"Confirmação dos mestres da casa \",\"Batismo na umbanda em 2016 \nIniciação na bruxaria em 2020 \",\"Não Batizado(a)\",\"\",\"Não tenho \",\"Não \"\n\"Daniela Ferreira Campelo da Silva \",\"2024-04-22\",\"1980-03-26\",\"solteira\",\"Rua Cairo Batista Beirigo  315 ,  Chácaras Vila Real , MG Uberaba,Brasil \",\"\",\"Df4490288@gmail.com\",\"(34) 99104-1480\",\"Instagram danielaferreira53\",\"auxiliar de limpeza \",\"Shr Sete capas preta \",\"Dona Maria da sete facadas \",\"Pelo shr Pantera negra ,Exu do Mestre Danilo Copine\",\"não realizei \",\"Batizado(a)\",\"2025-11-01\",\"Não tenho \",\"Não \"\n\"Daniela Medalha Ferreira dos Santos \",\"2024-06-11\",\"1983-11-09\",\"Divorciada\",\"Rua José  Vitor de Andrade N 84 Serra Dourada\",\"\",\"daniellamedalha@gmail.com\",\"34996719561\",\"Instagram @dradaniellamedalha\",\"Fisioterapeuta Acupunturista \",\"Senhor Exu do Lodo \",\"Senhora Dona Cacurucaia \",\"Pelos sacerdotes da casa .\",\"Não realizei.’\",\"Não Batizado(a)\",\"\",\"Não \",\"Sertralina; Levoide \"\n\"Deivid Hudson de Oliveira \",\"2023-08-14\",\"1988-07-16\",\"Casado \",\"Avenida Prudente de Morais \",\"\",\"Deivid_Hudson@hotmail.com\",\"5534992553620\",\"Instagram @eudeividoliver\",\"Cabeleireiro \",\"Sr. Sete da Lira \",\"Dona Maria Padilha do Cabaré \",\"Pelos mestres da casa povo do buraco \",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Não tenho \",\"Usava canabis \"\n\"Dienne Silva \",\"2023-09-23\",\"1991-05-06\",\"Solteira \",\"Rua ana barbosa Ferreira 270, ilha do marajo, Uberaba-MG \",\"\",\"Dihsilva2k20@gmail.com\",\"+55 34992359517\",\"Instagram @filha.de_rosa\",\"Cabelereira \",\"Senhor Tata caveira\",\"Dona Rosa caveira \",\"Oráculo \",\"Não realizei \",\"Batizado(a)\",\"2023-09-23\",\"Não tenho \",\"Não \"\n\"Eduardo Oliveira \",\"2025-09-21\",\"1985-11-03\",\"Casado \",\"Rua cario Batista Beirigo 315\",\"\",\"vainereo@icloud.com\",\"34991233441\",\"Instagram eduardo_bioma\",\"Cabeleireiro \",\"Senhor Rei das 7 Encruzilhadas \",\"Senhora Rainha das 7 Encruzilhadas \",\"Nasceram comigo \",\"Batismo, assentamentos , Quizumbeiras, visão e audição , sacerdócio \",\"Batizado(a)\",\"2023-04-23\",\"Nao\",\"Não \"\n\"Emerson Duarte dos Santos\",\"2023-09-01\",\"1997-06-27\",\"Casado\",\"Rua Alice 1130, apto 201, Laranjeiras, Rio de Janeiro, Brasil. \",\"\",\"emerson.sanduar10@gmail.com\",\"34996754533\",\"Instagram esanduar\",\"Músico\",\"Capa Preta\",\"Rosa dos Ventos\",\"Oráculo Casa de Pantera e Sr. Rei das 7 Encruzilhadas\",\"Não realizei\",\"Batizado(a)\",\"2024-07-27\",\"Não \",\"Não\"\n\"Gabriel Claro De Almeida Perão \",\"2025-03-29\",\"1987-03-24\",\"Casado \",\"Rua José Vitor de Andrade \",\"\",\"gabriel.claro@hotmail.com\",\"34992933700\",\"Instagram Claro5151\",\"Motorista\",\"Rei da calunga \",\"Não sei ainda \",\"Mestre Eduardo quem falou \",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Não \",\"Não \"\n\"Juan Henrique Pires Silva\",\"2024-09-05\",\"2007-03-21\",\"Solteiro\",\"R. Reinaldo Alves da Rocha, 850- Portal Do Vale, BL1/AP608 - Uberlândia (MG) - Brasil\",\"\",\"juanhenpsilva@gmail.com\",\"+55 (34) 9 8445-2640\",\"TikTok @juanhpires\",\"autônomo \",\"Zé Pilintra\",\"Maria Farrapo\",\"Confirmação dos mestres da casa (Sr. Rei e Dona Rainha)\",\"Não realizei \",\"Batizado(a)\",\"2025-11-02\",\"Não tenho\",\"Não \"\n\"Kaique Giordani Sousa castro oliveira \",\"2024-07-04\",\"2003-12-30\",\"Solteiro \",\"Rua das acácias 503 Lourdes \",\"\",\"kaique65236@gmail.com\",\"5534996867015 5534984428848\",\"Instagram Kaiqueexu666\",\"Motoboy\",\"Marabô cigano\",\"Cigana 7 rosas\",\"Oráculo de Exu \",\"Batismo quimbanda \",\"Batizado(a)\",\"2025-11-02\",\"Bronquite \",\"Em festa.\"\n\"Kevin Douglas Costa de Sousa \",\"2024-09-05\",\"2006-11-17\",\"Solteiro \",\"R. Reinaldo Alves da Rocha, 850 - Portal do Vale - APT 608 - Uberlândia - MG, 38436-086 - Brasil\",\"\",\"csousakevin.24@icloud.com\",\"+55 (11) 9 3293-5319\",\"Instagram costa_kevszx\",\"Assistente do Setor de Apoio ao Empreiteiro BILD\",\"Exu Faísca \",\"Maria Padilha do Inferno \",\"Sr. Rei das 7 Encruzilhadas confirmou o nome dos meus mestres em um trabalho.\",\"Não realizei\",\"Batizado(a)\",\"2025-11-02\",\"Não tenho.\",\"Não faço uso de nenhuma medicação ou drogas.\"\n\"Laysa Mirelle Miguel Melo\",\"2025-04-26\",\"2003-05-28\",\"União Estável \",\"Campos Sales 622 - Abadia \",\"\",\"artselay@gmail.com\",\"55 34 992182455\",\"Instagram Laysamirelli_\",\"Had de Experiência\",\"SR CAPA PRETA\",\"CIGANA ESMERALDA \",\"Mestres da Casa \",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Não tenho \",\"Não \"\n\"Leandra Ferreira \",\"2025-04-24\",\"2007-03-15\",\"Solteira \",\"Rua Cairo Batista beirigo 315\",\"\",\"Lf957469@gmail.com \",\"55+ 11 98361-3086\",\"Instagram @_leandrsz\",\"Cabeleireira \",\"Tranca rua de embaré \",\"Pombagira Menina da praia \",\"Os mestres da casa me falaram \",\"Não \",\"Batizado(a)\",\"2025-11-02\",\"Não \",\"Não \"\n\"Luiz Gustavo Santos Furtado \",\"2025-04-10\",\"2012-02-27\",\"Solteiro \",\"Rua José Victor de Andrade 84 casa Brasil \",\"\",\"Luizgustavosantosfurtado2012@gmail.com\",\"5534998602702\",\"TikTok luizgustavosantosfurtad\",\"Estudante\",\"Tata caveira \",\"Tata mulambo \",\"Pombo gira se apresentou. Exu dona tata mulambo falo.\",\"Não realizei \",\"Não Batizado(a)\",\"\",\"Nao tenho \",\"Não \"\n\"Marcelo Luiz Ferraz Nauheimer de Arruda \",\"2023-11-19\",\"1999-06-24\",\"Solteiro\",\"Rua Massaranduba, 238. \nBairro Vila Monte Alegre\nCEP:04304120\nSão Paulo/SP\nBrasil \",\"\",\"Nauheimerpro@gmail.com\",\"+5511939361000\",\"Instagram @marcelonauheimer\",\"Personal \",\"Exu Kalunga\",\"Maria Mulambo da Figueira \",\"Oráculo Mestre Danilo Coppini \",\"Não realizei.\",\"Batizado(a)\",\"2024-07-27\",\"Ceratocone \",\"Não\"\n\"Maria Eduarda Rodrigues Barcelos \",\"2023-09-01\",\"1999-11-01\",\"Casada \",\"Rua Alice 1130, apto 201, Laranjeiras, Rio de Janeiro, Brasil. \",\"\",\"rodriguesmariaeduarda18@gmail.com\",\"34998973269\",\"Instagram madudbarcelos\",\"Atriz \",\"Destranca Ruas \",\"Rosa Negra \",\"Sr Rei e Oráculo do mestre Danilo \",\"Não realizei \",\"Batizado(a)\",\"2024-07-27\",\"Não tenho \",\"Puran e anticoncepcional \"\n\"Patrícia Azevedo \",\"2024-12-04\",\"1972-09-27\",\"Casada\",\"Rua de gonde 93 Avanca Portugal \",\"\",\"Myjuedu@uahoo.com.br\",\"351 926682798\",\"Instagram Patricia_aazevedo\",\"Aposentada \",\"Tranca Rua das Almas\",\"Maria Padilha\",\"Pelo Mestre Danilo\",\"Não \",\"Não Batizado(a)\",\"\",\"Tiróide De Hashimoto, coluna lombar e cervical \",\"Não \"\n\"Simone Azevedo\",\"2023-11-25\",\"1974-05-08\",\"Divorciada \",\"Rua Arcabuz , 193 , jardim Adutora \",\"\",\"siazee@hotmail.com\",\"11986058765\",\"Instagram simonenenauan\",\"Vendedora \",\"Tranca Rua Estradeiro \",\"Cigana Esmeralda \",\"Sr. Pantera disse pra mim \",\"não realizei \",\"Batizado(a)\",\"2024-07-27\",\"não \",\"não \"\n\"Thaís Cristina Nascimento de Deus \",\"2023-08-14\",\"1991-04-02\",\"Casada \",\"Prudente de Morais 135,sala 7\",\"\",\"Thaisnascimentoo1991@gmail.com \",\"34992505046\",\"Instagram @thais.nascimentoo\",\"Carreira \",\"7 Capa Preta \",\"Sete Saias \",\"Através do Senhor Rei das Sere Encruzilhadas \",\" Não realizei \",\"Batizado(a)\",\"2024-07-27\",\"Não \",\"Maconha \"\n\"Yan Ferreira Campelo da Silva \",\"2024-08-03\",\"2009-10-28\",\"solteiro \",\"Rua Cairo Batista Beirigo 315\",\"\",\"Campelo04350@icloud.com\",\"34991230917\",\"Instagram Eo_yan.00\",\"Assistente de cabeleireiro\",\"Sr Zé pelintra \",\"Dona Maria navalha \",\"Através dos donos da casa \",\"Não\",\"Batizado(a)\",\"2025-11-02\",\"Não tenho\",\"Não \"\n\"Carolina de Araújo Andrade\",\"2026-01-10\",\"1997-11-09\",\"Solteira\",\"Rua dos Ferreiras, 475\",\"Rua 4, 462\",\"carolina.araujo.andrade@gmail.com\",\"34991266275\",\"Instagram carolaraujoac\",\"Advogada\",\"Senhor Belzebu\",\"Senhora Rosa Negra\",\"Senhor Rei das Sete Encruzilhadas\",\"nenhuma\n\",\"Não Batizado(a)\",\"\",\"Autismo\",\"anticoncepcional, trazodona (dose mínima para dormir)\"\n\"Gabriel souto Borges\",\"2026-02-18\",\"2002-01-17\",\"solteiro\",\"rua Virgílio Carrijo 355\",\"\",\"Gabriel.s.b1701@gmail.com\",\"34991259681\",\"Instagram biel_soutoo\",\"Gestor \",\"7 porteira \",\"\",\"Outra tradição(umbanda)\",\"Nenhuma \n\",\"Não Batizado(a)\",\"\",\"Não\",\"Não\"\n\"Bruno Alexsandro Gonçalves Ferreira\",\"2026-02-19\",\"2001-03-12\",\"solteiro\",\"rua Marcelo Morais de Oliveira 175\",\"casa\",\"brunoalexsandroferreira@gmail.com\",\"34998558429\",\"Instagram @bruno_alex_ferreira\",\"cirurgião dentista\",\"Ainda não sei \",\"Ainda não sei \",\"\",\"\",\"Não Batizado(a)\",\"\",\"não \n\",\"não \n\"\n\"Allan do nascimento\",\"2023-09-21\",\"1993-02-07\",\"Solteiro\",\"Av. Luís Carlos maluf, 102, Residencial 2000, Uberaba MG, Brasil\",\"\",\"allan.nascimento836@gmail.com\",\"034-99155-6958\",\"Instagram allan_makaya\",\"Vigia\",\"Exu Treme terra\",\"Pombogira das Matas\",\"Através de Oraculo\n\",\"Nao realizei \n\",\"Batizado(a)\",\"2023-11-25\",\"Não tenho \n\",\"Não utilizo\"\n\"João Tomé Da Costa\",\"2023-08-07\",\"1998-06-12\",\"Solteiro\",\"Avenida Santos Dumont 3110\",\"\",\"joaotome9897@outlook.com\",\"3499104-7551\",\"Instagram joaotomehair\",\"Cabeleireiro\",\"João caveira\",\"Maria caveira\",\"Oráculo \n\",\"Não realizei \n\",\"Batizado(a)\",\"2024-07-27\",\"Não \n\",\"Não\"\n\"Lilian de Sousa Bernardes\",\"2023-11-11\",\"1985-11-03\",\"Solteira\",\"Rua Fernando Sabino de Freitas 335\",\"\",\"lilika.bernardes1985@gmail.com\",\"55 34 99144-7071\",\"Facebook Lilian Bernardes\",\"Autônoma\",\"Tiriri Cigano\",\"Rosa Vermelha\",\"Oráculo \n\",\"Não realizei \n\",\"Batizado(a)\",\"2024-02-24\",\"Não tenho \n\",\"Não\"\n\"João Marcos Oliveira da Silva\",\"2026-01-10\",\"1997-06-14\",\"Solteiro\",\" Avenida dos Ferreiras, 475, Uberlândia.\",\"Casa 426\",\"ojoaomarcos14@gmail.com\",\"34 99236-1484\",\"Instagram jm_marcos14\",\"Advogado\",\"7 Capas Pretas\",\"Maria Quitéria \",\"ditos pelo mestre Rei das 7 Encruzilhadas \n\",\"Nenhuma\",\"Não Batizado(a)\",\"\",\"autismo/altas habilidades (superdotação). Alergia à penicilina \n\",\"Não\"\n\"Maria José Domingos da Silva Melo\",\"2023-11-11\",\"1969-12-12\",\"Casada\",\"rua Ana Barbosa Ferreira número 270 ilha de marajo, Uberaba - Minas Gerais\",\"\",\"Mariadomingos37960@gmail.com 34\",\"99808-8390\",\"Instagram m4ry_sillv4\",\"\",\"Exu Zé Pilintra\",\"dona Maria Farrapo\",\"Oráculo\",\"Nenhuma\",\"Batizado(a)\",\"2024-02-24\",\"Rinite\",\"Remédio para pressão\"\n\"Jorge Luiz Siqueira Júnior\",\"2026-04-21\",\"1995-09-19\",\"Solteiro\",\"Av. dos Inconfidentes, n° 330\",\"Apartamento 202\",\"siqueirajr1995@gmail.com\",\"34 996338369\",\"Instagram @siqueirajr1995\",\"Servidor Público - Mestre de obras\",\"Tranca Rua das Almas\",\"Rosa Caveira\",\"Através de oráculo com o mestre Eduardo\",\"Nenhuma\",\"Não Batizado(a)\",\"\",\"intolerância a lactose, rinite. Alergia a Benzetacil\",\"Não\"";
