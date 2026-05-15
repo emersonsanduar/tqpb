@@ -14,46 +14,230 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* Estilos personalizados */
+        :root {
+            --bg: #0f172a;
+            --bg-deep: #020617;
+            --panel: rgba(30, 41, 59, 0.82);
+            --panel-strong: rgba(15, 23, 42, 0.94);
+            --line: rgba(148, 163, 184, 0.18);
+            --line-strong: rgba(239, 68, 68, 0.32);
+            --red: #ef4444;
+            --red-dark: #991b1b;
+            --text-soft: #cbd5e1;
+        }
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(239, 68, 68, 0.62) rgba(15, 23, 42, 0.55);
+        }
+        *::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        *::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.55);
+        }
+        *::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #ef4444, #7f1d1d);
+            border: 2px solid #0f172a;
+            border-radius: 999px;
+        }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #0f172a; /* Slate 900 (fundo mais rico e moderno) */
+            background:
+                linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+                linear-gradient(135deg, #020617 0%, #0f172a 42%, #111827 100%);
+            background-size: 42px 42px, 42px 42px, auto;
+            background-attachment: fixed;
             color: #f8fafc;
         }
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(180deg, rgba(239, 68, 68, 0.08), transparent 26%),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.55), transparent 28%, transparent 72%, rgba(15, 23, 42, 0.5));
+            z-index: -1;
+        }
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='360' height='260' viewBox='0 0 360 260' xmlns='http://www.w3.org/2000/svg'%3E%3Cg stroke='white' stroke-width='1.4' stroke-linecap='round' opacity='0.46'%3E%3Cg transform='translate(38 42)'%3E%3Cpath d='M0 -8V8M-8 0H8'/%3E%3C/g%3E%3Cg transform='translate(178 64) rotate(90)'%3E%3Cpath d='M0 -9V9M-9 0H9'/%3E%3C/g%3E%3Cg transform='translate(306 38) rotate(45)'%3E%3Cpath d='M0 -8V8M-8 0H8'/%3E%3C/g%3E%3Cg transform='translate(94 160) rotate(-45)'%3E%3Cpath d='M0 -7V7M-7 0H7'/%3E%3C/g%3E%3Cg transform='translate(246 176) rotate(180)'%3E%3Cpath d='M0 -10V10M-10 0H10'/%3E%3C/g%3E%3Cg transform='translate(332 222) rotate(28)'%3E%3Cpath d='M0 -6V6M-6 0H6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            background-size: 360px 260px;
+            background-position: 18px 22px;
+            opacity: 0.16;
+            z-index: -1;
+        }
+        ::selection {
+            background: rgba(239, 68, 68, 0.42);
+            color: #ffffff;
+        }
+        #app {
+            position: relative;
+            min-height: 100vh;
+        }
+        #app > header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            padding: 1rem 0 1.5rem;
+            backdrop-filter: blur(18px);
+        }
+        #app > header h1,
+        #login-screen h1 {
+            text-shadow: 0 0 24px rgba(239, 68, 68, 0.35);
+        }
+        #main-content {
+            max-width: 1500px;
+        }
         .btn-primary {
-            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-            border: 1px solid #dc2626;
-            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 52%, #7f1d1d 100%);
+            border: 1px solid rgba(248, 113, 113, 0.8);
+            box-shadow: 0 10px 24px rgba(127, 29, 29, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, filter 0.25s ease;
+        }
+        .btn-primary::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.18) 45%, transparent 70%);
+            transform: translateX(-120%);
+            transition: transform 0.55s ease;
         }
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 16px 34px rgba(239, 68, 68, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
             border-color: #f87171;
+            filter: saturate(1.08);
+        }
+        .btn-primary:hover::before {
+            transform: translateX(120%);
+        }
+        .btn-primary:active,
+        .btn-secondary:active {
+            transform: translateY(0) scale(0.99);
         }
         .btn-secondary {
-            background: linear-gradient(135deg, #475569 0%, #334155 100%);
-            border: 1px solid #64748b;
-            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.95) 0%, rgba(30, 41, 59, 0.98) 100%);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
         }
         .btn-secondary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 16px 30px rgba(2, 6, 23, 0.34);
             border-color: #94a3b8;
+            background: linear-gradient(135deg, rgba(100, 116, 139, 0.98) 0%, rgba(51, 65, 85, 0.98) 100%);
         }
         .card-gradient {
-            background: #1e293b;
-            border: 1px solid #334155;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
+                var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 20px 55px rgba(2, 6, 23, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(18px);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+        }
+        .card-gradient::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.65), transparent);
+            opacity: 0.62;
+        }
+        .card-gradient:hover {
+            border-color: rgba(239, 68, 68, 0.28);
+            box-shadow: 0 26px 68px rgba(2, 6, 23, 0.44), 0 0 0 1px rgba(239, 68, 68, 0.05);
         }
         .form-input, .form-select, .form-textarea {
-            background-color: #0f172a;
-            border: 1px solid #334155;
+            background-color: rgba(2, 6, 23, 0.56);
+            border: 1px solid rgba(100, 116, 139, 0.34);
+            border-radius: 8px;
             color: #f8fafc;
-            transition: all 0.2s ease;
+            min-height: 42px;
+            padding: 0.65rem 0.8rem;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+        .form-input::placeholder,
+        .form-textarea::placeholder {
+            color: #64748b;
         }
         .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
             border-color: #ef4444;
-            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+            background-color: rgba(15, 23, 42, 0.92);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2), 0 0 28px rgba(239, 68, 68, 0.08);
+        }
+        label {
+            color: var(--text-soft);
+        }
+        #main-nav {
+            background:
+                linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98)),
+                #111827;
+            border-right: 1px solid rgba(148, 163, 184, 0.16);
+            box-shadow: 12px 0 34px rgba(2, 6, 23, 0.32);
+            backdrop-filter: blur(18px);
+        }
+        #main-nav button {
+            width: 90px;
+            min-height: 66px;
+            display: grid;
+            place-items: center;
+            gap: 4px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+        #main-nav button:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.18);
+            transform: translateX(2px);
+        }
+        #main-nav button svg {
+            filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0));
+            transition: filter 0.2s ease;
+        }
+        #main-nav button:hover svg,
+        #main-nav button.nav-active svg {
+            filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.38));
+        }
+        #main-nav button span {
+            display: block;
+            max-width: 86px;
+            line-height: 1.05;
+            overflow-wrap: normal;
+            word-break: keep-all;
+            hyphens: none;
+            text-align: center;
+            font-size: 0.6rem;
+        }
+        #main-content li > button,
+        details.bg-gray-700,
+        .bg-gray-700 {
+            background-color: rgba(51, 65, 85, 0.74) !important;
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+        }
+        #main-content li > button:hover,
+        details.bg-gray-700:hover,
+        .hover\:bg-gray-600:hover {
+            background-color: rgba(71, 85, 105, 0.82) !important;
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+        .admin-photo-placeholder,
+        .admin-photo-img {
+            box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.22), 0 20px 45px rgba(127, 29, 29, 0.24);
         }
         /* Animação de fade-in */
         @keyframes fadeIn {
@@ -66,14 +250,61 @@
         /* Estilo para o botão de navegação ativo */
         .nav-active {
             color: #ef4444; /* Vermelho */
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.24) !important;
         }
         /* Estilos para abas */
         .tab-btn {
             border-bottom: 2px solid transparent;
+            color: #94a3b8;
+            transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+        .tab-btn:hover {
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.06);
         }
         .tab-btn-active {
             border-bottom-color: #ef4444;
             color: #ef4444;
+            text-shadow: 0 0 16px rgba(239, 68, 68, 0.28);
+        }
+        @media (max-width: 768px) {
+            #app {
+                margin-left: 0 !important;
+                padding-bottom: 6.5rem;
+            }
+            #app > header {
+                position: static;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            #main-nav {
+                top: auto;
+                bottom: 0;
+                width: 100%;
+                height: 82px;
+                border-right: 0;
+                border-top: 1px solid rgba(148, 163, 184, 0.18);
+            }
+            #main-nav > div {
+                flex-direction: row;
+                justify-content: space-around;
+                gap: 0.25rem;
+                padding: 0 0.35rem;
+            }
+            #main-nav button {
+                width: auto;
+                min-width: 52px;
+                min-height: 58px;
+                padding: 0.35rem;
+            }
+            #main-nav button:hover {
+                transform: translateY(-2px);
+            }
+            #main-nav button span {
+                font-size: 0.62rem;
+            }
         }
     </style>
 </head>
@@ -111,7 +342,7 @@
     </div>
 
     <!-- Conteúdo Principal da Aplicação (inicialmente oculto) -->
-    <div id="app" class="ml-20 p-4 md:p-8" style="display: none;">
+    <div id="app" class="ml-28 p-4 md:p-8" style="display: none;">
         <!-- Cabeçalho -->
         <header class="flex justify-between items-center mb-12">
             <div class="flex items-center gap-4 md:gap-6">
@@ -142,7 +373,7 @@
     </div>
 
     <!-- Navegação Lateral Fixa -->
-    <nav id="main-nav" class="fixed left-0 top-0 h-screen w-20 bg-gray-800 shadow-lg" style="display: none;">
+    <nav id="main-nav" class="fixed left-0 top-0 h-screen w-28 bg-gray-800 shadow-lg" style="display: none;">
         <div class="flex flex-col h-full justify-center items-center gap-6">
             <button class="text-gray-300 hover:text-red-400 transition-colors duration-300" onclick="App.render('home')">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
@@ -179,7 +410,7 @@
                 username: 'admcontrole',
                 password: 'cova666',
                 valorMensalidade: 150.00,
-                initialDataVersion: '2026-05-15-lista-cadastros',
+                initialDataVersion: '2026-05-15-cadastros-financeiro-v2',
             },
             db: null, // Onde os dados serão mantidos em memória
             state: { // Estado volátil da UI
@@ -387,9 +618,12 @@
                             ...novoAdepto,
                             id: adeptoAtual.id || novoAdepto.id,
                             foto: adeptoAtual.foto,
-                            financeiro: adeptoAtual.financeiro || novoAdepto.financeiro,
+                            ativo: adeptoAtual.ativo !== undefined ? adeptoAtual.ativo : novoAdepto.ativo,
                         };
                     });
+                    this.db.custos = [];
+                    this.db.contribuicoes = [];
+                    this.applyInitialFinancialData();
                     this.db.initialDataVersion = this.config.initialDataVersion;
                     this.saveDB();
                 }
@@ -486,6 +720,73 @@
                     financeiro: { mensalidades: {}, debitos: [] }
                 }));
             },
+            applyInitialFinancialData: function() {
+                const normalizeNome = (nome) => (nome || '').trim().toLocaleLowerCase('pt-BR').replace(/s+/g, ' ');
+                const adeptosPorNome = new Map(this.db.adeptos.map((adepto) => [normalizeNome(adepto.nome), adepto]));
+                const valorMensalidade = this.config.valorMensalidade;
+                const addMensalidades = (nome, items) => {
+                    const adepto = adeptosPorNome.get(normalizeNome(nome));
+                    if (!adepto) return;
+                    if (!adepto.financeiro) adepto.financeiro = { mensalidades: {}, debitos: [] };
+                    items.split(',').map((item) => item.trim()).filter(Boolean).forEach((item) => {
+                        const [data, status, valorPagoRaw] = item.split(':');
+                        const [mesRaw, anoRaw] = data.split('/');
+                        const mes = parseInt(mesRaw, 10) - 1;
+                        const ano = anoRaw;
+                        const valorPago = valorPagoRaw !== undefined
+                            ? parseFloat(valorPagoRaw)
+                            : (status === 'pago' ? valorMensalidade : 0);
+
+                        if (!adepto.financeiro.mensalidades[ano]) adepto.financeiro.mensalidades[ano] = {};
+                        adepto.financeiro.mensalidades[ano][mes] = { status, valorPago };
+                    });
+                };
+                const addDebito = (nome, data, obs, status, valor, valorPago) => {
+                    const adepto = adeptosPorNome.get(normalizeNome(nome));
+                    if (!adepto) return;
+                    if (!adepto.financeiro) adepto.financeiro = { mensalidades: {}, debitos: [] };
+                    adepto.financeiro.debitos.push({ data, obs, status, valor, valorPago });
+                };
+
+                this.db.adeptos.forEach((adepto) => {
+                    adepto.financeiro = { mensalidades: {}, debitos: [] };
+                });
+
+                addMensalidades('Jorge Luiz Siqueira Júnior', '5/2026:pago,4/2026:isento');
+                addMensalidades('Maria José Domingos da Silva Melo', '4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('João Marcos Oliveira da Silva', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:isento');
+                addMensalidades('Lilian de Sousa Bernardes', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('João Tomé Da Costa', '5/2026:pendente,4/2026:pendente,3/2026:pendente,2/2026:pendente,1/2026:pendente,12/2025:pendente,11/2025:pendente,10/2025:pendente,9/2025:pendente,8/2025:pendente,7/2025:pendente,6/2025:pendente,5/2025:pendente,4/2025:pago,3/2025:pago,2/2025:pendente,1/2025:pago,12/2024:pendente,11/2024:pendente,10/2024:pendente,9/2024:pendente,8/2024:pendente,7/2024:pendente,6/2024:pago,5/2024:parcial:100,4/2024:pendente,3/2024:pago,2/2024:pendente,1/2024:pendente');
+                addMensalidades('Allan do nascimento', '4/2026:pendente,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pendente,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pendente,11/2024:pendente,10/2024:pendente,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('Bruno Alexsandro Gonçalves Ferreira', '5/2026:pendente,4/2026:pendente,3/2026:pago,2/2026:isento');
+                addMensalidades('Gabriel souto Borges', '5/2026:pendente,4/2026:pago,3/2026:pago,2/2026:isento');
+                addMensalidades('Carolina de Araújo Andrade', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:isento');
+                addMensalidades('Yan Ferreira Campelo da Silva', '4/2026:pendente,3/2026:pago,2/2026:pendente,1/2026:pendente,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pendente,3/2025:pendente,2/2025:pago,1/2025:pago,12/2024:pendente,11/2024:pendente,10/2024:pago,9/2024:pago,8/2024:pago');
+                addDebito('Thaís Cristina Nascimento de Deus', '2026-01-20', 'RAPÉS', 'pago', 880, 880);
+                addMensalidades('Thaís Cristina Nascimento de Deus', '2/2026:isento,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('Simone Azevedo', '5/2026:pago,4/2026:pendente,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('Patrícia Azevedo', '2/2026:isento,1/2026:isento,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago');
+                addMensalidades('Maria Eduarda Rodrigues Barcelos', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pendente,7/2025:pago,6/2025:pendente,5/2025:pendente,4/2025:pendente,3/2025:pendente,2/2025:pendente,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('Marcelo Luiz Ferraz Nauheimer de Arruda', '5/2026:pendente,4/2026:pago,3/2026:pendente,2/2026:pendente,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pendente,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('Luiz Gustavo Santos Furtado', '2/2026:isento,1/2026:isento,12/2025:isento,11/2025:isento,10/2025:isento,9/2025:isento,8/2025:isento,7/2025:isento,6/2025:isento,5/2025:isento,4/2025:isento');
+                addMensalidades('Leandra Ferreira', '5/2026:pendente,4/2026:pendente,3/2026:pendente,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:isento');
+                addMensalidades('Laysa Mirelle Miguel Melo', '5/2026:pendente,4/2026:pendente,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:isento');
+                addMensalidades('Kevin Douglas Costa de Sousa', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago');
+                addMensalidades('Kaique Giordani Sousa castro oliveira', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pendente,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago');
+                addMensalidades('Juan Henrique Pires Silva', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago');
+                addMensalidades('Gabriel Claro De Almeida Perão', '5/2026:pendente,4/2026:pago,3/2026:pendente,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pendente,6/2025:pendente,5/2025:pendente,4/2025:pago,3/2025:isento');
+                addMensalidades('Emerson Duarte dos Santos', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pendente,7/2025:pago,6/2025:pendente,5/2025:pendente,4/2025:pendente,3/2025:pendente,2/2025:pendente,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('Eduardo Oliveira', '4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago');
+                addMensalidades('Dienne Silva', '4/2026:pago,3/2026:pendente,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pendente,9/2025:pendente,8/2025:pendente,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pendente,11/2024:pendente,10/2024:pendente,9/2024:pago,8/2024:pago,7/2024:parcial:100,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('Deivid Hudson de Oliveira', '2/2026:isento,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:pago');
+                addMensalidades('Daniela Medalha Ferreira dos Santos', '2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:isento,6/2024:isento');
+                addMensalidades('Daniela Ferreira Campelo da Silva', '5/2026:pendente,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pendente,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pendente,11/2024:pendente,10/2024:pendente,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:pago,4/2024:pago');
+                addMensalidades('Cristiellen Elisa Silva Batista', '5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pendente,7/2025:pendente,6/2025:isento');
+                addMensalidades('Bruno Libanore', '5/2026:pendente,4/2026:pendente,3/2026:pendente,2/2026:pago,1/2026:pago,12/2025:pago,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pendente,6/2025:pago,5/2025:pendente,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pendente,11/2024:pendente,10/2024:pago,9/2024:pendente,8/2024:pago,7/2024:pago,6/2024:pendente,5/2024:pago,4/2024:pago,3/2024:pago,2/2024:pago,1/2024:isento');
+                addMensalidades('Bruna Silva Vieira', '5/2026:pendente,4/2026:pendente,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pendente,11/2025:pendente,10/2025:pendente,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:isento');
+                addMensalidades('Alef Oliveira sousa', '6/2026:isento,5/2026:pago,4/2026:pago,3/2026:pago,2/2026:pago,1/2026:pago,12/2025:pendente,11/2025:pago,10/2025:pago,9/2025:pago,8/2025:pago,7/2025:pago,6/2025:pago,5/2025:pago,4/2025:pago,3/2025:pago,2/2025:pago,1/2025:pago,12/2024:pago,11/2024:pago,10/2024:pago,9/2024:pago,8/2024:pago,7/2024:pago,6/2024:pago,5/2024:isento');
+            },
+
 
             // 2. RENDERIZAÇÃO E NAVEGAÇÃO
             render: function(page, data = {}) {
@@ -1707,7 +2008,11 @@
 
                 content += '<div class="space-y-6">';
 
-                this.db.adeptos.forEach((adepto, index) => {
+                const adeptosOrdenados = this.db.adeptos
+                    .map((adepto, index) => ({ adepto, index }))
+                    .sort((a, b) => a.adepto.nome.localeCompare(b.adepto.nome, 'pt-BR'));
+
+                adeptosOrdenados.forEach(({ adepto, index }) => {
                     const resumo = this.calcularResumoFinanceiro(index);
                     if (resumo.saldo < 0) {
                         inadimplentesEncontrados = true;
